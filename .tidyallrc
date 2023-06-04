@@ -1,0 +1,16 @@
+; Run "tidyall -a" to process all files.
+; Run "tidyall -g" to process all added or modified files in the current git working directory.
+; https://perladvent.org/2020/2020-12-01.html
+
+ignore = **/*.bak **/_*.pm blib/**/* builder/_alien/**/* extract/**/* dyncall/**/*
+
+[PerlTidy]
+select = **/*.{pl,pm,t}
+select = cpanfile
+argv = -anl -baao --check-syntax --closing-side-comments-balanced -nce -dnl --delete-old-whitespace --delete-semicolons -fs -nhsc -ibc -bar -nbl -ohbr -opr -osbr -nsbl -nasbl -otr -olc --perl-best-practices --nostandard-output -sbc -nssc --break-at-old-logical-breakpoints --break-at-old-keyword-breakpoints --break-at-old-ternary-breakpoints --ignore-old-breakpoints --swallow-optional-blank-lines --iterations=2 --maximum-line-length=100 --paren-vertical-tightness=0 --trim-qw -b -bext=old --standard-error-output --backup-and-modify-in-place --character-encoding=none
+
+[PodTidy]
+select = lib/**/*.{pm,pod}
+
+[PodChecker]
+select = **/*.{pl,pm,pod}

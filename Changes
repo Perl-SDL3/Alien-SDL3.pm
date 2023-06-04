@@ -1,0 +1,7 @@
+Revision history for Perl extension Alien::SDL3
+
+{{$NEXT}}
+
+    - original version
+    - installs whatever is at the tip of main
+    - does not pull prebuilt binaries for Windows
