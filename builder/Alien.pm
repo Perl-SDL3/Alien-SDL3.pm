@@ -20,12 +20,14 @@ package builder::Alien {
         $outfile->parent->mkpath;
         my $response = $http->mirror( $liburl, $outfile, {} );
         if ( $response->{success} ) {    #ddx $response;
+            $self->add_to_cleanup($outfile);
             CORE::say 'okay' unless $self->quiet;
             my $outdir = $outfile->parent->child( $outfile->basename( '.tar.gz', '.zip' ) );
             printf 'Extracting to %s... ', $outdir unless $self->quiet;
             my $ae = Archive::Extract->new( archive => $outfile );
             if ( $ae->extract( to => $outdir ) ) {
                 CORE::say 'okay' unless $self->quiet;
+                $self->add_to_cleanup( $ae->extract_path );
                 return Path::Tiny->new( $ae->extract_path );
             }
             else {
@@ -61,8 +63,10 @@ package builder::Alien {
                 my $store = tempdir()->child( $lib . '.tar.gz' );
                 my $build = tempdir()->child('build');
                 my $okay  = $self->fetch_source( $archives{$lib}->[0], $store );
+                $self->add_to_cleanup( $okay->canonpath );
                 next if !$okay;
                 $self->config_data( $lib => 1 );
+
                 if ( path($okay)->child( 'external', 'download.sh' )->exists &&
                     Devel::CheckBin::check_bin('git') ) {
                     $self->_do_in_dir(
