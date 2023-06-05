@@ -66,6 +66,7 @@ package builder::Alien {
                 $self->add_to_cleanup( $okay->canonpath );
                 next if !$okay;
                 $self->config_data( $lib => 1 );
+                $self->feature( $lib => 0 );
 
                 if ( path($okay)->child( 'external', 'download.sh' )->exists &&
                     Devel::CheckBin::check_bin('git') ) {

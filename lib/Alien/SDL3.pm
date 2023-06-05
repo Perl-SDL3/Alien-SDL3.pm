@@ -4,6 +4,7 @@ package Alien::SDL3 0.01 {
     use File::ShareDir;
     use Path::Tiny;
     use Config;
+    use Alien::SDL3::ConfigData;
     #
     sub dynamic_libs {
         my $files = path( File::ShareDir::dist_dir('Alien-SDL3') )->visit(
@@ -13,13 +14,14 @@ package Alien::SDL3 0.01 {
             },
             { recurse => 1 }
         );
+        keys %$files;
     }
 
     sub features {
-        require Alien::SDL3::ConfigData;
+        my ( $self, $feature ) = @_;
+        return Alien::SDL3::ConfigData->feature($feature) if defined $feature;
         my %features = map { $_ => Alien::SDL3::ConfigData->feature($_) }
             qw[SDL3 SDL3_image SDL3_mixer SDL3_ttf];
-        return $features{ $_[1] } if defined $_[1];
         \%features;
     }
 }
