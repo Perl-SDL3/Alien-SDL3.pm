@@ -2,6 +2,8 @@ Revision history for Perl extension Alien::SDL3
 
 {{$NEXT}}
 
+0.01 2023-06-05T17:54:25Z
+
     - original version
     - installs whatever is at the tip of main
     - does not pull prebuilt binaries for Windows
