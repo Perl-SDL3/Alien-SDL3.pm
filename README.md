@@ -1,4 +1,4 @@
-[![Actions Status](https://github.com/sanko/Alien-SDL3.pm/actions/workflows/test.yml/badge.svg)](https://github.com/sanko/Alien-SDL3.pm/actions)
+[![Actions Status](https://github.com/sanko/Alien-SDL3.pm/actions/workflows/test.yml/badge.svg)](https://github.com/sanko/Alien-SDL3.pm/actions) [![MetaCPAN Release](https://badge.fury.io/pl/Alien-SDL3.svg)](https://metacpan.org/release/Alien-SDL3)
 # NAME
 
 Alien::SDL3 - Build and install SDL3
