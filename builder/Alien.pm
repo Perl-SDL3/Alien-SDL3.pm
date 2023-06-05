@@ -64,10 +64,13 @@ package builder::Alien {
                 my $build = tempdir()->child('build');
                 my $okay  = $self->fetch_source( $archives{$lib}->[0], $store );
                 $self->add_to_cleanup( $okay->canonpath );
+                if ( !$okay ) {
+                    die if $lib eq 'SDL3';
+                    next;
+                }
                 next if !$okay;
                 $self->config_data( $lib => 1 );
                 $self->feature( $lib => 0 );
-
                 if ( path($okay)->child( 'external', 'download.sh' )->exists &&
                     Devel::CheckBin::check_bin('git') ) {
                     $self->_do_in_dir(
@@ -107,6 +110,7 @@ package builder::Alien {
                             $self->feature( $lib => 0 );
                             printf STDERR "Failed to build %s! %s\n", $lib,
                                 $archives{$lib}->[2] // '';
+                            die if $lib eq 'SDL3';
                         }
                     }
                 );
