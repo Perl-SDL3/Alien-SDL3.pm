@@ -1,4 +1,4 @@
-package Alien::SDL3 0.01 {
+package Alien::SDL3 0.02 {
     use strict;
     use warnings;
     use File::ShareDir;
@@ -26,7 +26,6 @@ package Alien::SDL3 0.01 {
     }
 }
 1;
-__END__
 
 =encoding utf-8
 
@@ -36,7 +35,7 @@ Alien::SDL3 - Build and install SDL3
 
 =head1 SYNOPSIS
 
-    use Alien::SDL3;
+    use Alien::SDL3; # Don't.
 
 =head1 DESCRIPTION
 
@@ -51,10 +50,10 @@ use. Just ignore it for now.
 Copyright (C) Sanko Robinson.
 
 This library is free software; you can redistribute it and/or modify it under
-the same terms as Perl itself.
+the terms found in the Artistic License 2. Other copyrights, terms, and
+conditions may apply to data transmitted through this module.
 
 =head1 AUTHOR
-
 
 Sanko Robinson E<lt>sanko@cpan.orgE<gt>
 
