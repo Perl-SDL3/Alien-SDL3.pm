@@ -7,13 +7,12 @@ on 'test' => sub {
 on configure => sub {
     requires 'HTTP::Tiny';
     requires 'Path::Tiny';
-    requires 'Archive::Extract';
-    #
+    requires 'Archive::Extract', '0.88';
+    requires 'Archive::Tar',     '3.02';
+    requires 'Compress::Zlib',   '2.204';
+    requires 'IO::Zlib',         '1.14';
     requires 'ExtUtils::CBuilder';
-    requires 'Alien::gmake';
     requires 'Alien::cmake3';
-
-    #~ requires 'Alien::Ninja';
     requires 'Module::Build';
     requires 'Devel::CheckBin';
 };

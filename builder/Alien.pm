@@ -10,6 +10,7 @@ package builder::Alien {
     use Env qw[@PATH];
     use Alien::cmake3;
     use Devel::CheckBin;
+    $|++;
     #
     unshift @PATH, Alien::cmake3->bin_dir;
     #
@@ -37,6 +38,7 @@ package builder::Alien {
         else {
             warn 'Failed to download ' . $liburl;
         }
+        return 0;
     }
 
     sub ACTION_code {
@@ -56,19 +58,16 @@ package builder::Alien {
             SDL3_ttf => ['https://github.com/libsdl-org/SDL_ttf/archive/refs/heads/main.tar.gz']
         );
         for my $lib ( sort keys %archives ) {
-            if (
-                #~ $lib eq 'SDL3_mixer' or
-                !$self->config_data($lib)
-            ) {
+            if ( !$self->config_data($lib) ) {
                 my $store = tempdir()->child( $lib . '.tar.gz' );
                 my $build = tempdir()->child('build');
                 my $okay  = $self->fetch_source( $archives{$lib}->[0], $store );
-                $self->add_to_cleanup( $okay->canonpath );
                 if ( !$okay ) {
                     die if $lib eq 'SDL3';
                     next;
                 }
                 next if !$okay;
+                $self->add_to_cleanup( $okay->canonpath );
                 $self->config_data( $lib => 1 );
                 $self->feature( $lib => 0 );
                 if ( path($okay)->child( 'external', 'download.sh' )->exists &&
@@ -91,6 +90,9 @@ package builder::Alien {
                             '--install-prefix=' . $p->canonpath,
                             '-Wdeprecated -Wdev -Werror',
                             '-DSDL_SHARED=ON',
+                            '-DSDL_TESTS=OFF',
+                            '-DSDL_INSTALL_TESTS=OFF',
+                            '-DSDL_DISABLE_INSTALL_MAN=ON',
                             '-DSDL_VENDOR_INFO=SDL3.pm',
                             '-DCMAKE_BUILD_TYPE=Release',
                             '-DSDL3_DIR=' . $self->share_dir->{dist},

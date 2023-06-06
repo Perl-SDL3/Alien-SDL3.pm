@@ -30,11 +30,13 @@
       "configure" : {
          "requires" : {
             "Alien::cmake3" : "0",
-            "Alien::gmake" : "0",
-            "Archive::Extract" : "0",
+            "Archive::Extract" : "0.88",
+            "Archive::Tar" : "3.02",
+            "Compress::Zlib" : "2.204",
             "Devel::CheckBin" : "0",
             "ExtUtils::CBuilder" : "0",
             "HTTP::Tiny" : "0",
+            "IO::Zlib" : "1.14",
             "Module::Build" : "0.4005",
             "Path::Tiny" : "0"
          }
@@ -73,7 +75,7 @@
          "web" : "https://github.com/sanko/Alien-SDL3.pm"
       }
    },
-   "version" : "0.02",
+   "version" : "0.03",
    "x_authority" : "cpan:SANKO",
    "x_serialization_backend" : "JSON::PP version 4.16",
    "x_static_install" : 0

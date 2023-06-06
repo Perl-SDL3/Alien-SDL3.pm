@@ -2,6 +2,10 @@ Revision history for Perl extension Alien::SDL3
 
 {{$NEXT}}
 
+    - Don't try to clean paths from tarballs that we never extracted
+    - Explicitly return false when we fail to dl and extract lib's source
+    - Trying to figure this out: http://www.cpantesters.org/cpan/report/a8235ba9-762a-1014-8029-f651364cc2ba (why is Archive::Extract looking for /bin/gzip on Win32?)
+
 0.02 2023-06-06T01:40:21Z
 
     - Comply with MB's clean action

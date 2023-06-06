@@ -1,4 +1,4 @@
-package Alien::SDL3 0.02 {
+package Alien::SDL3 0.03 {
     use strict;
     use warnings;
     use File::ShareDir;
