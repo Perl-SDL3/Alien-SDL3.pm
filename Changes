@@ -2,6 +2,8 @@ Revision history for Perl extension Alien::SDL3
 
 {{$NEXT}}
 
+0.04 2023-06-07T15:52:30Z
+
     - Another dist built to diagnose an wonky smoaker... yay!
     - http://www.cpantesters.org/cpan/report/4550e21c-053a-11ee-98b0-b3c3213a625c
 
