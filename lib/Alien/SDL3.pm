@@ -6,11 +6,22 @@ package Alien::SDL3 0.04 {
     use Config;
     use Alien::SDL3::ConfigData;
     #
+    my $base = path( File::ShareDir::dist_dir('Alien-SDL3') );
+    sub sdldir { $base; }
+
+    sub incdir {
+        sdldir->child('include');
+    }
+
+    sub libdir {
+        sdldir->child('lib');
+    }
+
     sub dynamic_libs {
-        my $files = path( File::ShareDir::dist_dir('Alien-SDL3') )->visit(
+        my $files = libdir->visit(
             sub {
                 my ( $path, $state ) = @_;
-                $state->{$path}++ if $path =~ m[\.$Config{so}$];
+                $state->{$path}++ if $path =~ m[\.$Config{so}([-\.][\d\.]+)?$];
             },
             { recurse => 1 }
         );
