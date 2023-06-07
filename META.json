@@ -36,8 +36,10 @@
             "Devel::CheckBin" : "0",
             "ExtUtils::CBuilder" : "0",
             "HTTP::Tiny" : "0",
+            "IO::Socket::SSL" : "1.42",
             "IO::Zlib" : "1.14",
             "Module::Build" : "0.4005",
+            "Net::SSLeay" : "1.49",
             "Path::Tiny" : "0"
          }
       },
