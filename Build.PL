@@ -38,7 +38,7 @@ my %args = (
     },
 
     test_requires => {
-        'Test::More' => '0.98',
+        'Test2::V0' => '0',
     },
 
     name            => 'Alien-SDL3',

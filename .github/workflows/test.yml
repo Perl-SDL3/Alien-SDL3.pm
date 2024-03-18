@@ -29,6 +29,6 @@ jobs:
         with:
           perl-version: ${{ matrix.perl }}
       - name: Install dependencies
-        run: cpanm --installdeps --with-develop --with-recommends --with-suggests --with-configure --verbose --notest --mirror http://cpan.cpantesters.org .
+        run: cpanm --installdeps --with-recommends --with-suggests --with-configure --verbose --notest --mirror http://cpan.cpantesters.org .
       - name: Run test
         run: cpanm --test-only -v .
