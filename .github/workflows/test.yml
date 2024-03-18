@@ -1,5 +1,5 @@
 name: test
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
     runs-on: "${{ matrix.os }}"
@@ -12,6 +12,7 @@ jobs:
           - windows-latest
         perl:
           [
+            "5.38",
             "5.36",
             "5.34",
             "5.32",
@@ -22,7 +23,7 @@ jobs:
           ]
     name: ${{ matrix.perl }} on ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup perl
         uses: shogo82148/actions-setup-perl@v1
         with:
@@ -31,4 +32,3 @@ jobs:
         run: cpanm --installdeps --with-develop --with-recommends --with-suggests --with-configure --verbose --notest --mirror http://cpan.cpantesters.org .
       - name: Run test
         run: cpanm --test-only -v .
-
