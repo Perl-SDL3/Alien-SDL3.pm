@@ -16,6 +16,7 @@ package builder::Alien {
     #~ apt-get install libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
     #~ pacman -S sdl2 sdl2_image sdl2_mixer sdl2_ttf
     #~ dnf install SDL2-devel SDL2_image-devel SDL2_mixer-devel SDL2_ttf-devel
+    #~ https://github.com/libsdl-org/setup-sdl/issues/20
     my $SDL_version       = '2.30.1';
     my $SDL_image_version = '2.8.2';
     my $SDL_mixer_version = '2.8.0';
@@ -57,7 +58,7 @@ package builder::Alien {
         my $p    = path( $self->base_dir )->child('share');
         $p->mkdir;
         $p->child('lib')->mkdir();
-        $self->share_dir( $p->canonpath );
+        $self->share_dir( $p->realpath->stringify );
         if ( $^O eq 'MSWin32' ) {    # pretend we're 64bit
             my %archives = (
                 SDL3 => [
@@ -80,10 +81,9 @@ package builder::Alien {
                 my $store = tempdir()->child( $lib . '.zip' );
                 my $okay  = $self->fetch( $archives{$lib}->[0], $store );
                 if ( !$okay ) {
-                    die if $lib eq 'SDL3';
+                    die 'Failed to fetch SDL3 binaries' if $lib eq 'SDL3';
                     next;
                 }
-                next if !$okay;
                 $self->add_to_cleanup( $okay->canonpath );
                 $okay->visit(
                     sub {
