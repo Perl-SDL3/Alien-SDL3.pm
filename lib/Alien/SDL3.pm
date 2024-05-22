@@ -9,11 +9,11 @@ package Alien::SDL3 0.04 {
     my $base = path( File::ShareDir::dist_dir('Alien-SDL3') );
     sub sdldir { $base; }
 
-    sub incdir {
+    sub incdir {    # only valid in shared install
         sdldir->child('include');
     }
 
-    sub libdir {
+    sub libdir {    # only valid in shared dir
         sdldir->child('lib');
     }
 

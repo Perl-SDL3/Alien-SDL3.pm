@@ -17,6 +17,7 @@ package builder::Alien {
     #~ pacman -S sdl2 sdl2_image sdl2_mixer sdl2_ttf
     #~ dnf install SDL2-devel SDL2_image-devel SDL2_mixer-devel SDL2_ttf-devel
     #~ https://github.com/libsdl-org/setup-sdl/issues/20
+    # TODO: Write a GH action to test with libs preinstalled
     my $SDL_version       = '2.30.1';
     my $SDL_image_version = '2.8.2';
     my $SDL_mixer_version = '2.8.0';
@@ -55,10 +56,10 @@ package builder::Alien {
 
     sub ACTION_code {
         my $self = shift;
-        my $p    = path( $self->base_dir )->child('share');
+        my $p    = path( $self->base_dir )->child('share')->realpath;
         $p->mkdir;
         $p->child('lib')->mkdir();
-        $self->share_dir( $p->realpath->stringify );
+        $self->share_dir( $p->stringify );
         if ( $^O eq 'MSWin32' ) {    # pretend we're 64bit
             my %archives = (
                 SDL3 => [
@@ -92,7 +93,7 @@ package builder::Alien {
                     },
                     { recurse => 1 }
                 );
-                $self->config_data( $lib => 1 );
+                $self->config_data( $lib => 'share' );
                 $self->feature( $lib => 1 );
             }
 
@@ -116,37 +117,24 @@ package builder::Alien {
                 ]
             );
             for my $lib ( grep { defined $archives{$_} } @liblist ) {
-                next if $self->feature($lib);
-                {    # TODO: Write a GH action to test with libs preinstalled
-                    require File::Temp;    # Prefer Path::Tiny...
-                    my ( $fh, $filename ) = File::Temp::tempfile(
-                        'probe_lib' . $lib . '_XXXX',
-                        SUFFIX => '.c',
-                        TMPDIR => 1
-                    );
-                    syswrite $fh, 'int main(){return 1;}';
-                    require ExtUtils::CBuilder;    # Core
-                    my $b        = ExtUtils::CBuilder->new( quiet => 1 );
-                    my $obj_file = $b->compile( source => $filename );
-
-                    # TODO: gather the location (see Affix::locate_lib(...))
-                    next if eval {
-                        $b->link(                  # prefer Try::Tiny
-                            objects            => $obj_file,
-                            extra_linker_flags => '-lSDL3main -l' . $lib
-                        );
-                    };
+                require DynaLoader;
+                my ($path) = DynaLoader::dl_findfile( '-l' . $lib );
+                if ($path) {
+                    $self->config_data( $lib           => 'system' );
+                    $self->config_data( $lib . '_path' => path($path)->realpath->stringify );
+                    $self->feature( $lib => 1 );
+                    next;
                 }
                 my $store = tempdir()->child( $lib . '.tar.gz' );
                 my $build = tempdir()->child('build');
                 my $okay  = $self->fetch( $archives{$lib}->[0], $store );
                 if ( !$okay ) {
-                    die if $lib eq 'SDL3';
+                    die 'Failed to download SDL3 source' if $lib eq 'SDL3';
                     next;
                 }
                 next if !$okay;
                 $self->add_to_cleanup( $okay->canonpath );
-                $self->config_data( $lib => 1 );
+                $self->config_data( $lib => 'share' );
                 $self->feature( $lib => 0 );
                 if ( path($okay)->child( 'external', 'download.sh' )->exists &&
                     Devel::CheckBin::check_bin('git') ) {
@@ -158,7 +146,7 @@ package builder::Alien {
                     );
                     $archives{$lib}->[1] = '-DSDL3MIXER_VENDORED=ON';
                 }
-                else {
+                 {
                     $self->_do_in_dir(
                         $okay,
                         sub {
