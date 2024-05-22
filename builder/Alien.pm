@@ -22,7 +22,8 @@ package builder::Alien {
     my $SDL_image_version = '2.8.2';
     my $SDL_mixer_version = '2.8.0';
     my $SDL_ttf_version   = '2.22.0';
-    my @liblist           = qw[SDL3 SDL3_image SDL3_mixer SDL3_ttf];
+    my $SDL_rtf_version   = '';
+    my @liblist           = qw[SDL3 SDL3_image SDL3_mixer SDL3_ttf SDL3_rtf];
     #
     unshift @PATH, Alien::cmake3->bin_dir;
     #
@@ -114,7 +115,8 @@ package builder::Alien {
                 ],
                 SDL3_ttf => [
                     "https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_ttf_version}/SDL2_ttf-${SDL_ttf_version}.tar.gz"
-                ]
+                ],
+                SDL3_rtf => ["https://github.com/libsdl-org/SDL_rtf/archive/refs/heads/main.zip"]
             );
             for my $lib ( grep { defined $archives{$_} } @liblist ) {
                 require DynaLoader;
@@ -146,7 +148,7 @@ package builder::Alien {
                     );
                     $archives{$lib}->[1] = '-DSDL3MIXER_VENDORED=ON';
                 }
-                 {
+                {
                     $self->_do_in_dir(
                         $okay,
                         sub {

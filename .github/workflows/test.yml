@@ -30,5 +30,16 @@ jobs:
           perl-version: ${{ matrix.perl }}
       - name: Install dependencies
         run: cpanm --installdeps --with-recommends --with-suggests --with-configure --verbose --notest --mirror http://cpan.cpantesters.org .
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@main
+        id: sdl
+        with:
+          install-linux-dependencies: true
+          version: 3-latest
+          version-sdl-image: 3-latest
+          version-sdl-mixer: 3-latest
+          version-sdl-ttf: 3-latest
+          version-sdl-rtf: 3-latest
+          add-to-environment: true
       - name: Run test
         run: cpanm --test-only -v .
