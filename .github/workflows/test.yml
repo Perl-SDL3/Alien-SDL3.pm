@@ -30,12 +30,6 @@ jobs:
     name: ${{ matrix.perl }} on ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup perl
-        uses: shogo82148/actions-setup-perl@v1
-        with:
-          perl-version: ${{ matrix.perl }}
-      - name: Install dependencies
-        run: cpanm --installdeps --with-recommends --with-suggests --with-configure --verbose --notest --mirror http://cpan.cpantesters.org .
       - uses: ilammy/msvc-dev-cmd@v1
         if: ${{ matrix.platform.msvc }}
         with:
@@ -86,9 +80,12 @@ jobs:
             libharfbuzz-dev \
             pkg-config \
             ${NULL+}
-      - uses: actions/checkout@v3
+      - name: Setup perl
+        uses: shogo82148/actions-setup-perl@v1
         with:
-          submodules: recursive
+          perl-version: ${{ matrix.perl }}
+      - name: Install dependencies
+        run: cpanm --installdeps --with-recommends --with-suggests --with-configure --verbose --notest --mirror http://cpan.cpantesters.org .
 
       - name: Run test
         run: cpanm --test-only -v .
