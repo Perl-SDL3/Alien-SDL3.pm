@@ -61,134 +61,120 @@ package builder::Alien {
         $p->mkdir;
         $p->child('lib')->mkdir();
         $self->share_dir( $p->stringify );
-        if ( $^O eq 'MSWin32' ) {    # pretend we're 64bit
-            my %archives = (
-                SDL3 => [
-                    "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_version}/SDL2-${SDL_version}-win32-x64.zip"
-                ],
-                SDL3_image => [
-                    "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL_image_version}/SDL2_image-${SDL_image_version}-win32-x64.zip"
-                ],
-                SDL3_mixer => [
-                    "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL_mixer_version}/SDL2_mixer-${SDL_mixer_version}-win32-x64.zip",
-                    undef,    # flags
-                    'You may need to install various dev packages (flac, vorbis, opus, etc.)'
-                ],
-                SDL3_ttf => [
-                    "https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_ttf_version}/SDL2_ttf-${SDL_ttf_version}-win32-x64.zip"
-                ]
-            );
-            for my $lib ( grep { defined $archives{$_} } @liblist ) {
-                next if $self->feature($lib);
-                my $store = tempdir()->child( $lib . '.zip' );
-                my $okay  = $self->fetch( $archives{$lib}->[0], $store );
-                if ( !$okay ) {
-                    die 'Failed to fetch SDL3 binaries' if $lib eq 'SDL3';
-                    next;
-                }
-                $self->add_to_cleanup( $okay->canonpath );
-                $okay->visit(
-                    sub {
-                        my ( $path, $state ) = @_;
-                        $path->copy( $p->child( 'lib', $path->basename ) ) if /\.dll$/;
-                    },
-                    { recurse => 1 }
+        if ( !$self->config_data('okay') ) {
+            if ( $^O eq 'MSWin32' ) {    # pretend we're 64bit
+                my %archives = (
+                    SDL3       => ["https://github.com/libsdl-org/SDL/releases/download/release-${SDL_version}/SDL2-${SDL_version}-win32-x64.zip"],
+                    SDL3_image => [
+                        "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL_image_version}/SDL2_image-${SDL_image_version}-win32-x64.zip"
+                    ],
+                    SDL3_mixer => [
+                        "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL_mixer_version}/SDL2_mixer-${SDL_mixer_version}-win32-x64.zip",
+                        undef,    # flags
+                        'You may need to install various dev packages (flac, vorbis, opus, etc.)'
+                    ],
+                    SDL3_ttf => [
+                        "https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_ttf_version}/SDL2_ttf-${SDL_ttf_version}-win32-x64.zip"
+                    ]
                 );
-                $self->config_data( $lib => 'share' );
-                $self->feature( $lib => 1 );
-            }
-
-            #~ ...;
-        }
-        else {
-            my %archives = (
-                SDL3 => [
-                    "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_version}/SDL2-${SDL_version}.tar.gz"
-                ],
-                SDL3_image => [
-                    "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL_image_version}/SDL2_image-${SDL_image_version}.tar.gz"
-                ],
-                SDL3_mixer => [
-                    "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL_mixer_version}/SDL2_mixer-${SDL_mixer_version}.tar.gz",
-                    undef,    # flags
-                    'You may need to install various dev packages (flac, vorbis, opus, etc.)'
-                ],
-                SDL3_ttf => [
-                    "https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_ttf_version}/SDL2_ttf-${SDL_ttf_version}.tar.gz"
-                ],
-                SDL3_rtf => ["https://github.com/libsdl-org/SDL_rtf/archive/refs/heads/main.zip"]
-            );
-            for my $lib ( grep { defined $archives{$_} } @liblist ) {
-                require DynaLoader;
-                my ($path) = DynaLoader::dl_findfile( '-l' . $lib );
-                if ($path) {
-                    $self->config_data( $lib           => 'system' );
-                    $self->config_data( $lib . '_path' => path($path)->realpath->stringify );
+                for my $lib ( grep { defined $archives{$_} } @liblist ) {
+                    next if $self->feature($lib);
+                    my $store = tempdir()->child( $lib . '.zip' );
+                    my $okay  = $self->fetch( $archives{$lib}->[0], $store );
+                    if ( !$okay ) {
+                        die 'Failed to fetch SDL3 binaries' if $lib eq 'SDL3';
+                        next;
+                    }
+                    $self->add_to_cleanup( $okay->canonpath );
+                    $okay->visit(
+                        sub {
+                            my ( $path, $state ) = @_;
+                            $path->copy( $p->child( 'lib', $path->basename ) ) if /\.dll$/;
+                        },
+                        { recurse => 1 }
+                    );
+                    $self->config_data( $lib => 'share' );
                     $self->feature( $lib => 1 );
-                    next;
                 }
-                my $store = tempdir()->child( $lib . '.tar.gz' );
-                my $build = tempdir()->child('build');
-                my $okay  = $self->fetch( $archives{$lib}->[0], $store );
-                if ( !$okay ) {
-                    die 'Failed to download SDL3 source' if $lib eq 'SDL3';
-                    next;
-                }
-                next if !$okay;
-                $self->add_to_cleanup( $okay->canonpath );
-                $self->config_data( $lib => 'share' );
-                $self->feature( $lib => 0 );
-                if ( path($okay)->child( 'external', 'download.sh' )->exists &&
-                    Devel::CheckBin::check_bin('git') ) {
-                    $self->_do_in_dir(
-                        path($okay)->child('external'),
-                        sub {
-                            $self->do_system( 'sh', 'download.sh' );
-                        }
-                    );
-                    $archives{$lib}->[1] = '-DSDL3MIXER_VENDORED=ON';
-                }
-                {
-                    $self->_do_in_dir(
-                        $okay,
-                        sub {
-                            $self->do_system(
-                                Alien::cmake3->exe,
-                                grep {length} '-S ' . $okay,
-                                '-B ' . $build->canonpath,
-                                '--install-prefix=' . $p->canonpath,
-                                '-Wdeprecated -Wdev -Werror',
-                                '-DSDL_SHARED=ON',
-                                '-DSDL_TESTS=OFF',
-                                '-DSDL_INSTALL_TESTS=OFF',
-                                '-DSDL_DISABLE_INSTALL_MAN=ON',
-                                '-DSDL_VENDOR_INFO=SDL3.pm',
-                                '-DCMAKE_BUILD_TYPE=Release',
-                                '-DSDL3_DIR=' . $self->share_dir->{dist},
-                                $archives{$lib}->[1]
-                            );
-                            $self->do_system(
-                                Alien::cmake3->exe, '--build', $build->canonpath
 
-                                #, '--config Release', '--parallel'
-                            );
-                            if (
+                #~ ...;
+            }
+            else {
+                my %archives = (
+                    SDL3       => ["https://github.com/libsdl-org/SDL/releases/download/release-${SDL_version}/SDL2-${SDL_version}.tar.gz"],
+                    SDL3_image => [
+                        "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL_image_version}/SDL2_image-${SDL_image_version}.tar.gz"
+                    ],
+                    SDL3_mixer => [
+                        "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL_mixer_version}/SDL2_mixer-${SDL_mixer_version}.tar.gz",
+                        undef,    # flags
+                        'You may need to install various dev packages (flac, vorbis, opus, etc.)'
+                    ],
+                    SDL3_ttf =>
+                        ["https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_ttf_version}/SDL2_ttf-${SDL_ttf_version}.tar.gz"],
+                    SDL3_rtf => ["https://github.com/libsdl-org/SDL_rtf/archive/refs/heads/main.zip"]
+                );
+                for my $lib ( grep { defined $archives{$_} } @liblist ) {
+                    require DynaLoader;
+                    my ($path) = DynaLoader::dl_findfile( '-l' . $lib );
+                    if ($path) {
+                        $self->config_data( $lib           => 'system' );
+                        $self->config_data( $lib . '_path' => path($path)->realpath->stringify );
+                        $self->feature( $lib => 1 );
+                        next;
+                    }
+                    my $store = tempdir()->child( $lib . '.tar.gz' );
+                    my $build = tempdir()->child('build');
+                    my $okay  = $self->fetch( $archives{$lib}->[0], $store );
+                    if ( !$okay ) {
+                        die 'Failed to download SDL3 source' if $lib eq 'SDL3';
+                        next;
+                    }
+                    next if !$okay;
+                    $self->add_to_cleanup( $okay->canonpath );
+                    $self->config_data( $lib => 'share' );
+                    $self->feature( $lib => 0 );
+                    if ( path($okay)->child( 'external', 'download.sh' )->exists && Devel::CheckBin::check_bin('git') ) {
+                        $self->_do_in_dir(
+                            path($okay)->child('external'),
+                            sub {
+                                $self->do_system( 'sh', 'download.sh' );
+                            }
+                        );
+                        $archives{$lib}->[1] = '-DSDL3MIXER_VENDORED=ON';
+                    }
+                    {
+                        $self->_do_in_dir(
+                            $okay,
+                            sub {
                                 $self->do_system(
-                                    Alien::cmake3->exe, '--install', $build->canonpath
-                                )
-                            ) {
-                                $self->feature( $lib => 1 );
+                                    Alien::cmake3->exe,             grep {length} '-S ' . $okay,
+                                    '-B ' . $build->canonpath,      '--install-prefix=' . $p->canonpath,
+                                    '-Wdeprecated -Wdev -Werror',   '-DSDL_SHARED=ON',
+                                    '-DSDL_TESTS=OFF',              '-DSDL_INSTALL_TESTS=OFF',
+                                    '-DSDL_DISABLE_INSTALL_MAN=ON', '-DSDL_VENDOR_INFO=SDL3.pm',
+                                    '-DCMAKE_BUILD_TYPE=Release',   '-DSDL3_DIR=' . $self->share_dir->{dist},
+                                    $archives{$lib}->[1]
+                                );
+                                $self->do_system(
+                                    Alien::cmake3->exe, '--build', $build->canonpath
+
+                                    #, '--config Release', '--parallel'
+                                );
+                                if ( $self->do_system( Alien::cmake3->exe, '--install', $build->canonpath ) ) {
+                                    $self->feature( $lib => 1 );
+                                }
+                                else {
+                                    $self->feature( $lib => 0 );
+                                    printf STDERR "Failed to build %s! %s\n", $lib, $archives{$lib}->[2] // '';
+                                    die if $lib eq 'SDL3';
+                                }
                             }
-                            else {
-                                $self->feature( $lib => 0 );
-                                printf STDERR "Failed to build %s! %s\n", $lib,
-                                    $archives{$lib}->[2] // '';
-                                die if $lib eq 'SDL3';
-                            }
-                        }
-                    );
+                        );
+                    }
                 }
             }
+            $self->config_data( okay => 1 );
         }
         $self->SUPER::ACTION_code;
     }
