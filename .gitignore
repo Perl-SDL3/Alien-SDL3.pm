@@ -5,11 +5,9 @@
 /blib
 /Makefile
 /pm_to_blib
-/share
 
-/carton.lock
-/.carton/
 /local/
+.vs*
 
 nytprof.out
 nytprof/
@@ -19,9 +17,6 @@ cover_db/
 *.bak
 *.old
 *~
-*.swp
-*.o
-*.obj
 
 !LICENSE
 
@@ -30,5 +25,15 @@ cover_db/
 MYMETA.*
 
 /Alien-SDL3-*
-/.tidyall.d
-SciTE.session
+
+.tidyall.d/
+*.gz
+*.zip
+temp/
+t/dev/
+
+eg/*.pl
+eg/lib/*.pm
+
+*.session
+share/*
