@@ -75,8 +75,8 @@ Alien::SDL3 - Build and install SDL3
 =head1 DESCRIPTION
 
 Alien::SDL3 builds and installs L<SDL3|https://github.com/libsdl-org/SDL/>,
-L<SDL_image|https://github.com/libsdl-org/SDL_image/>, L<SDL_mixer|https://github.com/libsdl-org/SDL_mixer/>, and
-L<SDL_ttf|https://github.com/libsdl-org/SDL_ttf/>. It is not meant for direct use. Just ignore it for now.
+L<SDL2_image|https://github.com/libsdl-org/SDL_image/>, L<SDL2_mixer|https://github.com/libsdl-org/SDL_mixer/>, and
+L<SDL2_ttf|https://github.com/libsdl-org/SDL_ttf/>. It is not meant for direct use. Just ignore it for now.
 
 =head1 METHODS
 
@@ -88,20 +88,15 @@ Returns a list of the dynamic library or shared object files.
 
 =head1 Prerequisites
 
-Prior to building and installing the SDL3 libraries on Linux and macOS systems, certain development dependencies must
-be present.
+Prior to building and installing  on Linux and macOS systems, certain development dependencies must be present.
 
-On Linux, this typically involves installing development packages for essential build tools such as gcc, make, and
-autoconf. Additionally, the X11 development libraries (libx11-dev), or Wayland development libraries (libwayland-dev),
-along with their associated dependencies, are required for windowing and input.
+=head3 C<SDL3>
 
-On macOS, Xcode Command Line Tools, which include clang and make, are essential. Furthermore, Homebrew or a similar
-package manager is often used to install dependencies such as pkg-config. These dependencies ensure that the base SDL3
-library can be correctly compiled and linked against the required system resources.
+The X11 or Wayland development libraries are required on Linux, *BSD, etc.
 
-=head3 C<SDL_mixer>
+=head3 C<SDL2_mixer>
 
-These are required for building C<SDL_mixer> for audio mixing support:
+These are required for building C<SDL2_mixer> for audio mixing support:
 
 Linux (Debian/Ubuntu):
 
@@ -111,9 +106,9 @@ macOS (using Homebrew):
 
     $ brew install flac libvorbis opus
 
-=head3 C<SDL_image>
+=head3 C<SDL2_image>
 
-These are required for building C<SDL_image> for image loading support:
+These are required for building C<SDL2_image> for image loading support:
 
 Linux (Debian/Ubuntu):
 
@@ -123,9 +118,9 @@ macOS (using Homebrew):
 
     $ brew install libpng jpeg-turbo libwebp
 
-=head3 C<SDL_ttf>
+=head3 C<SDL2_ttf>
 
-These are required for building C<SDL_ttf> for TrueType font support:
+These are required for building C<SDL2_ttf> for TrueType font support:
 
 Linux (Debian/Ubuntu):
 

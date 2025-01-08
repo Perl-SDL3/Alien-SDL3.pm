@@ -34,13 +34,30 @@ class    #
     #~ dnf install SDL2-devel SDL2_image-devel SDL2_mixer-devel SDL2_ttf-devel
     #~ https://github.com/libsdl-org/setup-sdl/issues/20
     # TODO: Write a GH action to test with libs preinstalled
-    #~ field $SDL_version : param       //= '2.30.11';
-    field $SDL_version : param       //= '3.1.6';
-    field $SDL_image_version : param //= '2.8.4';
-    field $SDL_mixer_version : param //= '2.8.0';
-    field $SDL_ttf_version : param   //= '2.24.0';
-    field $SDL_rtf_version : param   //= '';
-    field @liblist = qw[SDL3 SDL2_image SDL2_mixer SDL2_ttf SDL2_rtf];
+    field %version      = ( SDL3 => '3.1.6', SDL2_image => '2.8.4', SDL2_mixer => '2.8.0', SDL2_ttf => '2.24.0', SDL2_rtf => '', SDL2 => '2.30.11' );
+    field @liblist      = qw[SDL3 SDL2_image SDL2_mixer SDL2_ttf];
+    field $archive_type = $^O eq 'MSWin32' ? '-win32-x64.zip' : '.tar.gz';    # pretend we're also 64bit on Windows
+    field %archives     = (
+        SDL3 => [ sprintf 'https://github.com/libsdl-org/SDL/releases/download/preview-%s/SDL3-%s%s', $version{SDL3}, $version{SDL3}, $archive_type ],
+        SDL2 => [ sprintf 'https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL2-%s%s', $version{SDL2}, $version{SDL2}, $archive_type ],
+        SDL2_image => [
+            sprintf 'https://github.com/libsdl-org/SDL_image/releases/download/release-%s/SDL2_image-%s%s',
+            $version{SDL2_image}, $version{SDL2_image}, $archive_type
+        ],
+        SDL2_mixer => [
+            sprintf(
+                'https://github.com/libsdl-org/SDL_mixer/releases/download/release-%s/SDL2_mixer-%s%s',
+                $version{SDL2_mixer}, $version{SDL2_mixer}, $archive_type
+            ),
+            undef,    # flags
+            'You may need to install various dev packages (flac, vorbis, opus, etc.)'
+        ],
+        SDL2_ttf => [
+            sprintf 'https://github.com/libsdl-org/SDL_ttf/releases/download/release-%s/SDL2_ttf-%s%s',
+            $version{SDL2_ttf}, $version{SDL2_ttf}, $archive_type
+        ],
+        SDL2_rtf => ['https://github.com/libsdl-org/SDL_rtf/archive/refs/heads/main.tar.gz']
+    );
     field $http;
     field %config;
     #
@@ -128,20 +145,7 @@ class    #
         $p->child('lib')->mkdir();
 
         #~ $self->share_dir( $p->stringify );
-        if ( $^O eq 'MSWin32' ) {    # pretend we're 64bit
-            my %archives = (
-                SDL3       => ["https://github.com/libsdl-org/SDL/releases/download/preview-${SDL_version}/SDL3-${SDL_version}-win32-x64.zip"],
-                SDL2_image => [
-                    "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL_image_version}/SDL2_image-${SDL_image_version}-win32-x64.zip"
-                ],
-                SDL2_mixer => [
-                    "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL_mixer_version}/SDL2_mixer-${SDL_mixer_version}-win32-x64.zip",
-                    undef,    # flags
-                    'You may need to install various dev packages (flac, vorbis, opus, etc.)'
-                ],
-                SDL2_ttf =>
-                    ["https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_ttf_version}/SDL2_ttf-${SDL_ttf_version}-win32-x64.zip"]
-            );
+        if ( $^O eq 'MSWin32' ) {
             for my $lib ( grep { defined $archives{$_} } @liblist ) {
                 next if defined $config{$lib};
                 my $store = tempdir()->child( $lib . '.zip' );
@@ -159,26 +163,14 @@ class    #
                     },
                     { recurse => 1 }
                 );
-                $config{$lib}{type} = 'share';
-                $config{$lib}{okay} = 1;
+                $config{$lib}{type}    = 'share';
+                $config{$lib}{okay}    = 1;
+                $config{$lib}{version} = $version{$lib};
             }
 
             #~ ...;
         }
         else {
-            my %archives = (
-                SDL3       => ["https://github.com/libsdl-org/SDL/releases/download/preview-${SDL_version}/SDL3-${SDL_version}.tar.gz"],
-                SDL2_image =>
-                    ["https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL_image_version}/SDL2_image-${SDL_image_version}.tar.gz"],
-                SDL2_mixer => [
-                    "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL_mixer_version}/SDL2_mixer-${SDL_mixer_version}.tar.gz",
-                    undef,    # flags
-                    'You may need to install various dev packages (flac, vorbis, opus, etc.)'
-                ],
-                SDL2_ttf => ["https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_ttf_version}/SDL2_ttf-${SDL_ttf_version}.tar.gz"],
-
-                #~ SDL2_rtf => ['https://github.com/libsdl-org/SDL_rtf/archive/refs/heads/main.tar.gz']
-            );
             for my $lib ( grep { defined $archives{$_} } @liblist ) {
                 require DynaLoader;
                 my ($path) = DynaLoader::dl_findfile( '-l' . $lib );
@@ -225,7 +217,8 @@ class    #
                                 #, '--config Release', '--parallel'
                             );
                             if ( !system( Alien::cmake3->exe, '--install', $build->canonpath ) ) {
-                                $config{$lib}{okay} = 1;
+                                $config{$lib}{okay}    = 1;
+                                $config{$lib}{version} = $version{$lib};
                             }
                             else {
                                 printf STDERR "Failed to build %s! %s\n", $lib, $archives{$lib}->[2] // '';

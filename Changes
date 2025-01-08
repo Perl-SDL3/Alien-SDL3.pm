@@ -4,8 +4,8 @@ Revision history for Perl extension Alien::SDL3
 
     - Update lib versions
         - SDL3: 3.1.6 (preview)
-        - SDL_image: 2.8.4
-        - SDL_ttf: 2.24.0
+        - SDL2_image: 2.8.4
+        - SDL2_ttf: 2.24.0
 
 0.04 2023-06-07T15:52:30Z
 
