@@ -7,7 +7,8 @@ diag 'Alien::SDL3::VERSION == ' . $Alien::SDL3::VERSION;
 #
 diag 'Libs:';
 diag '  - ' . $_ for sort Alien::SDL3->dynamic_libs;
-diag sprintf '%s support: %s', $_, Alien::SDL3->features->{$_}{okay} ? 'yes' : 'no' for qw[SDL3 SDL3_image SDL3_mixer SDL3_ttf];
+diag 'Support:';
+diag sprintf '  - %-10s: %s', $_, Alien::SDL3->features->{$_}{okay} ? 'yes' : 'no' for qw[SDL3 SDL2_image SDL2_mixer SDL2_ttf];
 #
 isa_ok( Alien::SDL3->sdldir, ['Path::Tiny'], 'sdldir' );
 isa_ok( Alien::SDL3->incdir, ['Path::Tiny'], 'incdir' );
