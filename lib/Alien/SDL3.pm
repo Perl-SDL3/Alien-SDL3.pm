@@ -6,14 +6,14 @@ package Alien::SDL3 0.04 {
     #
     my $base;
     {
-        my $path = path( qw[auto share dist], ( __PACKAGE__ =~ s[::][-]rg ) );
+        my $path = path( qw[share dist], ( __PACKAGE__ =~ s[::][-]rg ) );
         for ( map { path($_) } @INC, map { path(__FILE__)->parent->parent->sibling($_)->absolute } qw[share blib] ) {
             $_->visit(
                 sub ( $p, $s ) {
                     return unless -d $p;
                     my $d = $p->child($path);
                     if ( defined $d && -d $d && -r $d ) {
-                        $base = $d;
+                        $base = $d->absolute;
                         return \0;
                     }
                 }
