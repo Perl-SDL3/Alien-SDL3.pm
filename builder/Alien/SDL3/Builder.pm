@@ -4,6 +4,7 @@
 use v5.38;
 use feature 'class';
 no warnings 'experimental::class', 'experimental::builtin';
+$|++;
 class    #
     Alien::SDL3::Builder {
     use CPAN::Meta;
@@ -20,7 +21,6 @@ class    #
     use HTTP::Tiny;
 
     # Not in CORE
-    use Alien::cmake3;
     use Path::Tiny qw[cwd path tempdir];
     use ExtUtils::Helpers 0.028 qw[make_executable split_like_shell detildefy];
     use Devel::CheckBin;
@@ -34,35 +34,27 @@ class    #
     #~ dnf install SDL2-devel SDL2_image-devel SDL2_mixer-devel SDL2_ttf-devel
     #~ https://github.com/libsdl-org/setup-sdl/issues/20
     # TODO: Write a GH action to test with libs preinstalled
-    field %version      = ( SDL3 => '3.1.6', SDL2_image => '2.8.4', SDL2_mixer => '2.8.0', SDL2_ttf => '2.24.0', SDL2_rtf => '', SDL2 => '2.30.11' );
-    field @liblist      = qw[SDL3 SDL2_image SDL2_mixer SDL2_ttf];
-    field $archive_type = $^O eq 'MSWin32' ? '-win32-x64.zip' : '.tar.gz';    # pretend we're also 64bit on Windows
-    field %archives     = (
-        SDL3 => [ sprintf 'https://github.com/libsdl-org/SDL/releases/download/preview-%s/SDL3-%s%s', $version{SDL3}, $version{SDL3}, $archive_type ],
-        SDL2 => [ sprintf 'https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL2-%s%s', $version{SDL2}, $version{SDL2}, $archive_type ],
-        SDL2_image => [
-            sprintf 'https://github.com/libsdl-org/SDL_image/releases/download/release-%s/SDL2_image-%s%s',
-            $version{SDL2_image}, $version{SDL2_image}, $archive_type
-        ],
-        SDL2_mixer => [
-            sprintf(
-                'https://github.com/libsdl-org/SDL_mixer/releases/download/release-%s/SDL2_mixer-%s%s',
-                $version{SDL2_mixer}, $version{SDL2_mixer}, $archive_type
-            ),
-            undef,    # flags
-            'You may need to install various dev packages (flac, vorbis, opus, etc.)'
-        ],
-        SDL2_ttf => [
-            sprintf 'https://github.com/libsdl-org/SDL_ttf/releases/download/release-%s/SDL2_ttf-%s%s',
-            $version{SDL2_ttf}, $version{SDL2_ttf}, $archive_type
-        ],
-        SDL2_rtf => ['https://github.com/libsdl-org/SDL_rtf/archive/refs/heads/main.tar.gz']
-    );
+    field $version : param  //= '3.2.4';
+    field $prebuilt : param //= 1;
+
+    #~ $^O eq 'MSWin32'
+    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-3.2.4.dmg
+    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-3.2.4.tar.gz
+    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-devel-3.2.4-mingw.zip
+    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-devel-3.2.4-VC.zip
+    field $archive : param //= sprintf 'https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL3-' . (
+        $^O eq 'MSWin32' ?
+            !$prebuilt ?
+                '%s.zip' :
+                ( $Config{cc} =~ m[gcc]i ? 'devel-%s-mingw.zip' : 'devel-%s-VC.zip' ) :
+
+            #~ $^O eq 'darwin' ? '%s.dmg' :
+            '%s.tar.gz'
+        ),
+        $version, $version;
     field $http;
     field %config;
     #
-    unshift @PATH, Alien::cmake3->bin_dir;
-
     # Params to Build script
     field $install_base : param  //= '';
     field $installdirs : param   //= '';
@@ -137,69 +129,83 @@ class    #
     }
 
     method step_build_libs() {
+
+        #~ warn $archive;
+        #~ warn $Config{cc};
+        #~ die;
         my $pre = cwd->absolute->child( qw[blib arch auto], $meta->name );
         return 0 if -d $pre;
         $pre->child('lib')->mkdir;
         my $p = $cwd->child('share')->realpath;
         $p->mkdir;
-        $p->child('lib')->mkdir();
 
+        #~ $p->child('lib')->mkdir();
+        #~ $p->child('include')->mkdir();
         #~ $self->share_dir( $p->stringify );
-        if ( $^O eq 'MSWin32' ) {
-            for my $lib ( grep { defined $archives{$_} } @liblist ) {
-                next if defined $config{$lib};
-                my $store = tempdir()->child( $lib . '.zip' );
-                my $okay  = $self->fetch( $archives{$lib}->[0], $store );
-                if ( !$okay ) {
-                    die 'Failed to fetch SDL binaries' if $lib eq 'SDL3';
-                    next;
-                }
+        if ( $^O eq 'MSWin32' && $prebuilt ) {
+            say 'Using prebuilt SDL3...' if $verbose;
+            next                         if $config{okay};
+            my $store = tempdir()->child('SDL3.zip');
+            my $okay  = $self->fetch( $archive, $store );
+            die 'Failed to fetch SDL binaries' unless $okay;
+            if ( $Config{cc} =~ m[gcc]i ) {
+                my $platform = $Config{archname} =~ /x64/ ? 'x86_64-w64-mingw32' : 'i686-w64-mingw32';
 
                 #~ $self->add_to_cleanup( $okay->canonpath );
-                $okay->visit(
+                $okay->child($platform)->visit(
                     sub {
                         my ( $path, $state ) = @_;
-                        $path->copy( $p->child( 'lib', $path->basename ) ) if /\.dll$/;
+                        $path->is_dir ? $p->child( $path->relative( $okay->child($platform) ) )->mkdir( verbose => $verbose ) :
+                            $path->copy( $p->child( $path->relative( $okay->child($platform) ) ) );
                     },
                     { recurse => 1 }
                 );
-                $config{$lib}{type}    = 'share';
-                $config{$lib}{okay}    = 1;
-                $config{$lib}{version} = $version{$lib};
             }
-
-            #~ ...;
+            else {    # Assume VC
+                my $platform = $Config{archname} =~ /x64/ ? 'x64' : 'x86';    # XXX - arm64 is untested, well so is VC right now...
+                $okay->child('include')->visit(
+                    sub {
+                        my ( $path, $state ) = @_;
+                        $path->is_dir ? $p->child( $path->relative( $okay->child('include') ) )->mkdir( verbose => $verbose ) :
+                            $path->copy( $p->child( $path->relative( $okay->child('include') ) ) );
+                    },
+                    { recurse => 1 }
+                );
+                $okay->child( 'lib', $platform )->visit(
+                    sub {
+                        my ( $path, $state ) = @_;
+                        $path->is_dir ? $p->child( $path->relative( $okay->child( 'lib', $platform ) ) )->mkdir( verbose => $verbose ) :
+                            $path->copy( $p->child( $path->relative( $okay->child( 'lib', $platform ) ) ) );
+                    },
+                    { recurse => 1 }
+                );
+            }
+            $config{type}    = 'share';
+            $config{okay}    = 1;
+            $config{version} = $version;
         }
         else {
-            for my $lib ( grep { defined $archives{$_} } @liblist ) {
-                require DynaLoader;
-                my ($path) = DynaLoader::dl_findfile( '-l' . $lib );
-                if ($path) {
-                    $config{$lib}{type} = 'system';
-                    $config{$lib}{path} = path($path)->realpath->stringify;
-                    next;
-                }
-                my $store = tempdir()->child( $lib . '.tar.gz' );
+            require DynaLoader;
+            require Alien::cmake3;
+            unshift @PATH, Alien::cmake3->bin_dir;
+            say 'Looking for SDL3 library...' if $verbose;
+            my ($path) = DynaLoader::dl_findfile('-lSDL3');
+            if ($path) {
+                $config{type} = 'system';
+                $config{path} = path($path)->realpath->stringify;
+                say 'Library found at ' . $config{path} if $verbose;
+            }
+            else {
+                say 'Building SDL3 from source...' if $verbose;
+                my $store = tempdir()->child( path($archive)->basename );
                 my $build = tempdir()->child('build');
-                my $okay  = $self->fetch( $archives{$lib}->[0], $store );
-                if ( !$okay ) {
-                    die 'Failed to download SDL3 source' if $lib eq 'SDL3';
-                    next;
-                }
-                next if !$okay;
+                my $okay  = $self->fetch( $archive, $store );
+                die 'Failed to download SDL3 source' unless $okay;
 
                 #~ $self->add_to_cleanup( $okay->canonpath );
-                $config{$lib}{path} = 'share';
-                $config{$lib}{okay} = 0;
-                if ( path($okay)->child( 'external', 'download.sh' )->exists && Devel::CheckBin::can_run('git') ) {
-                    $self->_do_in_dir(
-                        path($okay)->child('external'),
-                        sub {
-                            system 'sh', 'download.sh';
-                        }
-                    );
-                    $archives{$lib}->[1] = '-DSDL3MIXER_VENDORED=ON';
-                }
+                $config{path} = 'share';
+                $config{okay} = 0;
+                my $cflags = '';
                 {
                     $self->_do_in_dir(
                         $okay,
@@ -210,20 +216,15 @@ class    #
                                 '-DSDL_TESTS=OFF',              '-DSDL_INSTALL_TESTS=OFF',
                                 '-DSDL_DISABLE_INSTALL_MAN=ON', '-DSDL_VENDOR_INFO=SDL3.pm',
                                 '-DCMAKE_BUILD_TYPE=Release',   '-DSDL3_DIR=' . $cwd->child('share')->absolute,
-                                $archives{$lib}->[1]
+                                $cflags
                             );
                             system( Alien::cmake3->exe, '--build', $build->canonpath
 
                                 #, '--config Release', '--parallel'
                             );
-                            if ( !system( Alien::cmake3->exe, '--install', $build->canonpath ) ) {
-                                $config{$lib}{okay}    = 1;
-                                $config{$lib}{version} = $version{$lib};
-                            }
-                            else {
-                                printf STDERR "Failed to build %s! %s\n", $lib, $archives{$lib}->[2] // '';
-                                die if $lib eq 'SDL3';
-                            }
+                            die "Failed to build SDL3! %s\n", $archive // '' if system( Alien::cmake3->exe, '--install', $build->canonpath );
+                            $config{okay}    = 1;
+                            $config{version} = $version;
                         }
                     );
                 }
@@ -231,11 +232,7 @@ class    #
         }
         {
             my @out;
-            for my $section ( sort keys %config ) {
-                push @out, sprintf '[%s]',    $section;
-                push @out, sprintf '%s = %s', $_, $config{$section}{$_} for sort keys %{ $config{$section} };
-                push @out, '';    # Add extra newline between sections
-            }
+            push @out, sprintf '%s = %s', $_, $config{$_} for sort keys %config;
             $p->child('.config')->spew( join "\n", @out );
         }
     }
@@ -248,19 +245,19 @@ class    #
 
     method fetch ( $liburl, $outfile ) {
         $http //= HTTP::Tiny->new();
-        say sprintf 'Downloading %s... ', $liburl if $verbose;
+        printf 'Downloading %s... ', $liburl if $verbose;
         $outfile->parent->mkpath;
         my $response = $http->mirror( $liburl, $outfile, {} );
+        say $response->{reason} if $verbose;
         if ( $response->{success} ) {    #ddx $response;
 
             #~ $self->add_to_cleanup($outfile);
-            say 'okay' if $verbose;
             my $outdir = $outfile->parent->child( $outfile->basename( '.tar.gz', '.zip' ) );
             printf 'Extracting %s to %s... ', $outfile, $outdir if $verbose;
             require Archive::Extract;
             my $ae = Archive::Extract->new( archive => $outfile );
             if ( $ae->extract( to => $outdir ) ) {
-                say 'okay' if $verbose;
+                say 'done' if $verbose;
 
                 #~ $self->add_to_cleanup( $ae->extract_path );
                 return path( $ae->extract_path );
@@ -289,7 +286,7 @@ use lib 'builder';
 use %s;
 use Getopt::Long qw[GetOptionsFromArray];
 my %%opts = ( @ARGV && $ARGV[0] =~ /\A\w+\z/ ? ( action => shift @ARGV ) : () );
-GetOptionsFromArray \@ARGV, \%%opts, qw[install_base=s install_path=s%% installdirs=s destdir=s prefix=s config=s%% uninst:1 verbose:1 dry_run:1 jobs=i];
+GetOptionsFromArray \@ARGV, \%%opts, qw[install_base=s install_path=s%% installdirs=s destdir=s prefix=s config=s%% uninst:1 verbose:1 dry_run:1 jobs=i prebuilt:1];
 %s->new(%%opts)->Build();
 
         make_executable('Build');

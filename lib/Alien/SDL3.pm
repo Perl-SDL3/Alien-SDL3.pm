@@ -1,4 +1,4 @@
-package Alien::SDL3 0.04 {
+package Alien::SDL3 0.05 {
     use v5.36;
     use Path::Tiny;
     use Carp;
@@ -30,6 +30,10 @@ package Alien::SDL3 0.04 {
 
     sub libdir {    # only valid in shared dir
         sdldir->child('lib');
+    }
+
+    sub dlldir {    # only valid in shared dir
+        sdldir->child('bin');
     }
 
     sub dynamic_libs {
