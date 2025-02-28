@@ -4,7 +4,7 @@
    "author" : [
       "Sanko Robinson <sanko@cpan.org>"
    ],
-   "description" : "Locate or Build and Install SDL3 and related libs",
+   "description" : "Locate or Build and Install SDL3",
    "dynamic_config" : 0,
    "generated_by" : "App::mii v1.0.0",
    "keywords" : [],

@@ -129,19 +129,9 @@ class    #
     }
 
     method step_build_libs() {
-
-        #~ warn $archive;
-        #~ warn $Config{cc};
-        #~ die;
         my $pre = cwd->absolute->child( qw[blib arch auto], $meta->name );
         return 0 if -d $pre;
-        $pre->child('lib')->mkdir;
         my $p = $cwd->child('share')->realpath;
-        $p->mkdir;
-
-        #~ $p->child('lib')->mkdir();
-        #~ $p->child('include')->mkdir();
-        #~ $self->share_dir( $p->stringify );
         if ( $^O eq 'MSWin32' && $prebuilt ) {
             say 'Using prebuilt SDL3...' if $verbose;
             next                         if $config{okay};

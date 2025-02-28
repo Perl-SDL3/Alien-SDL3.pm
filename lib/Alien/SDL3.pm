@@ -1,5 +1,5 @@
 package Alien::SDL3 0.05 {
-    use v5.36;
+    use v5.38;
     use Path::Tiny;
     use Carp;
     use Config;
@@ -78,9 +78,9 @@ Alien::SDL3 - Build and install SDL3
 
 =head1 DESCRIPTION
 
-Alien::SDL3 builds and installs L<SDL3|https://github.com/libsdl-org/SDL/>,
-L<SDL2_image|https://github.com/libsdl-org/SDL_image/>, L<SDL2_mixer|https://github.com/libsdl-org/SDL_mixer/>, and
-L<SDL2_ttf|https://github.com/libsdl-org/SDL_ttf/>. It is not meant for direct use. Just ignore it for now.
+Alien::SDL3 builds and installs L<SDL3|https://github.com/libsdl-org/SDL/>.
+
+It is not meant for direct use. Just ignore it for now.
 
 =head1 METHODS
 
@@ -92,47 +92,9 @@ Returns a list of the dynamic library or shared object files.
 
 =head1 Prerequisites
 
-Prior to building and installing  on Linux and macOS systems, certain development dependencies must be present.
-
-=head3 C<SDL3>
+Depending on your platform, certain development dependencies must be present.
 
 The X11 or Wayland development libraries are required on Linux, *BSD, etc.
-
-=head3 C<SDL2_mixer>
-
-These are required for building C<SDL2_mixer> for audio mixing support:
-
-Linux (Debian/Ubuntu):
-
-    $ sudo apt-get install libflac-dev libvorbis-dev libvorbisfile-dev libopus-dev
-
-macOS (using Homebrew):
-
-    $ brew install flac libvorbis opus
-
-=head3 C<SDL2_image>
-
-These are required for building C<SDL2_image> for image loading support:
-
-Linux (Debian/Ubuntu):
-
-    $ sudo apt-get install libpng-dev libjpeg-dev libwebp-dev
-
-macOS (using Homebrew):
-
-    $ brew install libpng jpeg-turbo libwebp
-
-=head3 C<SDL2_ttf>
-
-These are required for building C<SDL2_ttf> for TrueType font support:
-
-Linux (Debian/Ubuntu):
-
-    $ sudo apt-get install libfreetype-dev
-
-macOS (using Homebrew):
-
-    $ brew install freetype
 
 =head1 LICENSE
 
@@ -146,4 +108,3 @@ This library is free software; you can redistribute it and/or modify it under th
 Sanko Robinson E<lt>sanko@cpan.orgE<gt>
 
 =cut
-
