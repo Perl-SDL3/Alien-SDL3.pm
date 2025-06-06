@@ -29,7 +29,9 @@ jobs:
             pkg: pkg install -y
             version: 14.1
         perl:
-          - "5.40.2"
+          - "5.40"
+        perl_subversion:
+          - "2"
       max-parallel: 5
     uses: sanko/actions/.github/workflows/affix-cross.yml@main
     with:
@@ -37,6 +39,7 @@ jobs:
       host: '${{ matrix.os.host }}'
       os: '${{ matrix.os.name }}'
       perl: '${{ matrix.perl }}'
+      perl_subversion:  '${{ matrix.perl_subversion }}'
       pkg: '${{ matrix.os.pkg }}'
       version: '${{ matrix.os.version }}'
   linux:
