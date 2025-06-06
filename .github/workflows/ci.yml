@@ -28,6 +28,31 @@ jobs:
             name: freebsd
             pkg: pkg install -y
             version: 14.1
+          - name: netbsd
+            architecture: x86-64
+            version: '10.1'
+            pkg: pkgin install -y
+            host: ubuntu-latest
+          - name: netbsd
+            architecture: arm64
+            version: '10.1'
+            pkg: pkgin install -y
+            host: ubuntu-latest
+          - name: openbsd
+            architecture:  x86-64
+            version: '7.7'
+            pkg: pkg_add -i
+            host: ubuntu-latest
+          - name: openbsd
+            architecture: arm64
+            version: '7.7'
+            pkg: pkg_add -i
+            host: ubuntu-latest
+          - name: haiku
+            architecture: x86-64
+            version: 'r1beta5'
+            host: ubuntu-latest
+            pkg: pkgman install
         perl:
           - "5.40"
         perl_subversion:
