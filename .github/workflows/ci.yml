@@ -9,12 +9,12 @@ jobs:
       matrix:
         os:
           - architecture: x86-64
-            host: ubuntu-20.04
+            host: ubuntu-24.04
             name: freebsd
             pkg: pkg install -y
             version: 13.2
           - architecture: arm64
-            host: ubuntu-20.04
+            host: ubuntu-24.04
             name: freebsd
             pkg: pkg install -y
             version: 13.2
