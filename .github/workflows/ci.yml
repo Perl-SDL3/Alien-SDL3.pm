@@ -41,6 +41,9 @@ jobs:
       perl: '${{ matrix.perl }}'
       perl_subversion:  '${{ matrix.perl_subversion }}'
       pkg: '${{ matrix.os.pkg }}'
+      setup: |
+        ${{ matrix.os.name == 'freebsd' && 'sudo pkg install -y cmake ninja pkgconf libXcursor libXext libXinerama libXi libXfixes libXrandr libXScrnSaver libXxf86vm wayland wayland-protocols libxkbcommon mesa-libs libglvnd evdev-proto libinotify alsa-lib jackit pipewire pulseaudio sndio dbus zh-fcitx ibus libudev-devd' || '' }}
+        ${{ matrix.os.name == 'netbsd' && 'sudo -E pkgin -y install cmake dbus pkgconf ninja-build pulseaudio libxkbcommon wayland wayland-protocols libinotify libusb1' || '' }}
       version: '${{ matrix.os.version }}'
   linux:
     name: 'Linux/v${{matrix.perl}}'
