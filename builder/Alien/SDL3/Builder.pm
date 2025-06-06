@@ -36,13 +36,7 @@ class    #
     # TODO: Write a GH action to test with libs preinstalled
     field $version : param  //= '3.2.6';
     field $prebuilt : param //= 1;
-
-    #~ $^O eq 'MSWin32'
-    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-3.2.4.dmg
-    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-3.2.4.tar.gz
-    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-devel-3.2.4-mingw.zip
-    #~ https://github.com/libsdl-org/SDL/releases/download/release-3.2.4/SDL3-devel-3.2.4-VC.zip
-    field $archive : param //= sprintf 'https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL3-' . (
+    field $archive : param  //= sprintf 'https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL3-' . (
         $^O eq 'MSWin32' ?
             !$prebuilt ?
                 '%s.zip' :
@@ -145,7 +139,7 @@ class    #
                 $okay->child($platform)->visit(
                     sub {
                         my ( $path, $state ) = @_;
-                        $path->is_dir ? $p->child( $path->relative( $okay->child($platform) ) )->mkdir( verbose => $verbose ) :
+                        $path->is_dir ? $p->child( $path->relative( $okay->child($platform) ) )->mkdir( { verbose => $verbose } ) :
                             $path->copy( $p->child( $path->relative( $okay->child($platform) ) ) );
                     },
                     { recurse => 1 }
@@ -156,7 +150,7 @@ class    #
                 $okay->child('include')->visit(
                     sub {
                         my ( $path, $state ) = @_;
-                        $path->is_dir ? $p->child( $path->relative( $okay->child('include') ) )->mkdir( verbose => $verbose ) :
+                        $path->is_dir ? $p->child( $path->relative( $okay->child('include') ) )->mkdir( { verbose => $verbose } ) :
                             $path->copy( $p->child( $path->relative( $okay->child('include') ) ) );
                     },
                     { recurse => 1 }
@@ -164,7 +158,7 @@ class    #
                 $okay->child( 'lib', $platform )->visit(
                     sub {
                         my ( $path, $state ) = @_;
-                        $path->is_dir ? $p->child( $path->relative( $okay->child( 'lib', $platform ) ) )->mkdir( verbose => $verbose ) :
+                        $path->is_dir ? $p->child( $path->relative( $okay->child( 'lib', $platform ) ) )->mkdir( { verbose => $verbose } ) :
                             $path->copy( $p->child( $path->relative( $okay->child( 'lib', $platform ) ) ) );
                     },
                     { recurse => 1 }
