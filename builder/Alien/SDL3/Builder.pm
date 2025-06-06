@@ -54,7 +54,7 @@ class    #
     field $installdirs : param   //= '';
     field $uninst : param        //= 0;    # Make more sense to have a ./Build uninstall command but...
     field $install_paths : param //= ExtUtils::InstallPaths->new( dist_name => $meta->name );
-    field $verbose : param       //= 0;
+    field $verbose : param       //= 1;
     field $dry_run : param       //= 0;
     field $pureperl : param      //= 0;
     field $jobs : param          //= 1;
