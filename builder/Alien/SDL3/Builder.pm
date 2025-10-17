@@ -34,9 +34,9 @@ class    #
     #~ dnf install SDL2-devel SDL2_image-devel SDL2_mixer-devel SDL2_ttf-devel
     #~ https://github.com/libsdl-org/setup-sdl/issues/20
     # TODO: Write a GH action to test with libs preinstalled
-    field $version : param  //= '3.2.24';
+    field $version  : param //= '3.2.24';
     field $prebuilt : param //= 1;
-    field $archive : param  //= sprintf 'https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL3-' . (
+    field $archive  : param //= sprintf 'https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL3-' . (
         $^O eq 'MSWin32' ?
             !$prebuilt ?
                 '%s.zip' :
@@ -50,16 +50,16 @@ class    #
     field %config;
     #
     # Params to Build script
-    field $install_base : param  //= '';
-    field $installdirs : param   //= '';
-    field $uninst : param        //= 0;    # Make more sense to have a ./Build uninstall command but...
+    field $install_base  : param //= '';
+    field $installdirs   : param //= '';
+    field $uninst        : param //= 0;    # Make more sense to have a ./Build uninstall command but...
     field $install_paths : param //= ExtUtils::InstallPaths->new( dist_name => $meta->name );
-    field $verbose : param       //= 0;
-    field $dry_run : param       //= 0;
-    field $pureperl : param      //= 0;
-    field $jobs : param          //= 1;
-    field $destdir : param       //= '';
-    field $prefix : param        //= '';
+    field $verbose       : param //= 0;
+    field $dry_run       : param //= 0;
+    field $pureperl      : param //= 0;
+    field $jobs          : param //= 1;
+    field $destdir       : param //= '';
+    field $prefix        : param //= '';
     field $cwd = cwd()->absolute;
     #
     #
