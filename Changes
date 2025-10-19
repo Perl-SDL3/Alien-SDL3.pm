@@ -1,5 +1,9 @@
 Revision history for Perl extension Alien::SDL3
 
+[Unreleased]
+
+    - 
+
 0.05 2025-10-17T19:07:32Z
 
     - Update to SDL3 3.2.24
