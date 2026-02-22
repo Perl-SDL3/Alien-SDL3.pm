@@ -3,12 +3,15 @@ requires 'Config';
 requires 'Path::Tiny';
 requires 'perl', '5.038000';
 on configure => sub {
+    requires 'Alien::Build';
+    requires 'Alien::Build::MM';
     requires 'Alien::cmake3';
     requires 'Archive::Extract', '0.88';
     requires 'Archive::Tar',     '3.02';
     requires 'Archive::Zip';
     requires 'CPAN::Meta';
     requires 'CPAN::Requirements::Dynamic';
+    requires 'Capture::Tiny';
     requires 'Compress::Zlib', '2.204';
     requires 'Config';
     requires 'Devel::CheckBin';
@@ -25,6 +28,7 @@ on configure => sub {
     requires 'JSON::PP',        '2';
     requires 'Net::SSLeay',     '1.49';
     requires 'Path::Tiny';
+    requires 'PkgConfig';
 };
 on test => sub {
     requires 'Test2::V0';

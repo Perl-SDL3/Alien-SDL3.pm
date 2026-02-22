@@ -206,7 +206,7 @@ class    #
 
                                 #, '--config Release', '--parallel'
                             );
-                            die "Failed to build SDL3! %s\n", $archive // '' if system( Alien::cmake3->exe, '--install', $build->canonpath );
+                            die sprintf "Failed to build SDL3! %s\n", $archive // '' if system( Alien::cmake3->exe, '--install', $build->canonpath );
                             $config{okay}    = 1;
                             $config{version} = $version;
                         }

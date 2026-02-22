@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
   - Updated to SDL3 3.2.28
-  - New versioning scheme to better match upstream while giving me room to fix my own mistakes
 
 ## [0.05] - 2025-10-17
 
