@@ -1,4 +1,4 @@
-package Alien::SDL3 v2.28.0 {
+package Alien::SDL3 v4.2.0 {
     use v5.38;
     use Path::Tiny;
     use Carp;
