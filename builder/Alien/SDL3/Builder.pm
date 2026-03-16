@@ -216,6 +216,7 @@ class    #
         }
         {
             my @out;
+            $p->mkpath;
             push @out, sprintf '%s = %s', $_, $config{$_} for sort keys %config;
             $p->child('.config')->spew( join "\n", @out );
         }
