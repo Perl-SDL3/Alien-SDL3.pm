@@ -102,7 +102,7 @@
    "provides" : {
       "Alien::SDL3" : {
          "file" : "lib/Alien/SDL3.pm",
-         "version" : "v3.4.2"
+         "version" : "v3.4.14"
       }
    },
    "release_status" : "stable",
@@ -120,7 +120,7 @@
          "web" : "https://github.com/Perl-SDL3/Alien-SDL3.pm"
       }
    },
-   "version" : "v3.4.2",
+   "version" : "v3.4.14",
    "x_authority" : "cpan:SANKO",
    "x_ignore" : [
       ".github/FUNDING.yml",

@@ -33,7 +33,7 @@ configure_requires:
   Path::Tiny: '0'
   PkgConfig: '0'
 dynamic_config: 0
-generated_by: 'App::mii v1.0.0, CPAN::Meta::Converter version 2.150012'
+generated_by: 'App::mii v1.0.0, CPAN::Meta::Converter version 2.150013'
 keywords: []
 license: artistic_2
 meta-spec:
@@ -53,7 +53,7 @@ no_index:
 provides:
   Alien::SDL3:
     file: lib/Alien/SDL3.pm
-    version: v3.4.2
+    version: v3.4.14
 requires:
   Carp: '0'
   Config: '0'
@@ -64,7 +64,7 @@ resources:
   homepage: https://github.com/Perl-SDL3/Alien-SDL3.pm
   license: http://www.perlfoundation.org/artistic_license_2_0
   repository: https://github.com/Perl-SDL3/Alien-SDL3.pm.git
-version: v3.4.2
+version: v3.4.14
 x_authority: cpan:SANKO
 x_ignore:
   - .github/FUNDING.yml

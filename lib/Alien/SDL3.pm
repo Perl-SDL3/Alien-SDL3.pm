@@ -1,4 +1,4 @@
-package Alien::SDL3 v3.4.2 {
+package Alien::SDL3 v3.4.14 {
     use v5.38;
     use Path::Tiny;
     use Carp;
@@ -105,6 +105,6 @@ This library is free software; you can redistribute it and/or modify it under th
 
 =head1 AUTHOR
 
-Sanko Robinson E<lt>sanko@cpan.orgE<gt>
+Sanko Robinson - <https://github.com/sanko>
 
 =cut
