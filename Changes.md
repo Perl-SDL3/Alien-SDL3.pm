@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated to SDL3 3.4.14
+- Updated to SDL3 3.4.16
 
 ## [v3.4.2] - 2026-02-22
 

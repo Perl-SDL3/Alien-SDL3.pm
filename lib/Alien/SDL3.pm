@@ -1,110 +1,36 @@
-package Alien::SDL3 v3.4.14 {
-    use v5.38;
-    use Path::Tiny;
-    use Carp;
-    use Config;
+use v5.40;
+use feature 'class';
+no warnings 'experimental::class';
+use Alien::Xrepo::Runtime;
+class Alien::SDL3 v1.0.0 : isa(Alien::Xrepo::Runtime) {
+
+    # SDL3 is bound as a family: core + the common extension libraries. Each is installed
+    # separately (as a SHARED library; xrepo builds SDL3 static by default, and Affix/FFI::Platypus
+    # need a real .dll/.so/.dylib) and exposed via the Alien::Build-style `alt()` accessor or a
+    # package-name argument.
     #
-    my $base;
-    {
-        my $path = path( qw[share dist], ( __PACKAGE__ =~ s[::][-]rg ) );
-        for ( map { path($_) } @INC, map { path(__FILE__)->parent->parent->sibling($_)->absolute } qw[share blib] ) {
-            $_->visit(
-                sub ( $p, $s ) {
-                    return unless -d $p;
-                    my $d = $p->child($path);
-                    if ( defined $d && -d $d && -r $d ) {
-                        $base = $d->absolute;
-                        return \0;
-                    }
-                }
-            );
-            last if defined $base;
-        }
-        $base // Carp::croak('Failed to find directory') unless $base;
+    # recipes/ is a small local xmake-repo tree (the libsdl3_ttf override); registering it here
+    # means the runtime description also carries everything the engine needs to reproduce the
+    # build.
+    method recipe {
+        return {
+            name     => 'Alien-SDL3',
+            packages => [
+                { name => 'libsdl3',       kind => 'shared' },
+                { name => 'libsdl3_image', kind => 'shared' },
+                { name => 'libsdl3_ttf',   kind => 'shared' },
+                { name => 'libsdl3_mixer', kind => 'shared' }
+            ],
+
+            # Ask for system packages explicitly: distro/brew copies of SDL3 and friends are preferred over
+            # building the pinned sources, and anything the system does not provide still falls back to a
+            # source build. Note this is deliberately not a hard requirement -- recipes/packages/l/libsdl3/
+            # xmake.lua gates the system path on SDL3 >= 3.4.18, so an older distro copy (eg Ubuntu's 3.4.2)
+            # is skipped rather than mixed with the 3.4.18 headers the extension libraries build against.
+            defaults    => { system => 1 },
+            local_repos => ['recipes']
+        };
     }
-    sub sdldir { $base; }
-
-    sub incdir {    # only valid in shared install
-        sdldir->child('include');
     }
-
-    sub libdir {    # only valid in shared dir
-        sdldir->child('lib');
-    }
-
-    sub dlldir {    # only valid in shared dir
-        sdldir->child('bin');
-    }
-
-    sub dynamic_libs {
-        my $files = ( $^O eq 'MSWin32' ? dlldir : libdir )->visit(
-            sub {
-                my ( $path, $state ) = @_;
-                $state->{$path}++ if $path =~ m[\.$Config{so}([-\.][\d\.]+)?$];
-            },
-            { recurse => 1 }
-        );
-        keys %$files;
-    }
-
-    sub features ( $self, $feature //= () ) {
-        CORE::state $config //= sub {
-            my %h;
-            my $section = '';
-            for ( $base->child('.config')->lines ) {
-                s/^\s+|\s+$//g;
-                next if m/^;|^$/;
-                if (m/^\[(.+)\]$/) { $section = $1 }
-                elsif (m/^(.+?)\s*=\s*(.*)$/) { $h{$section}{$1} = $2 }
-            }
-            \%h;
-            }
-            ->();
-        return $config->{$feature} if defined $feature;
-        $config;
-    }
-}
-1;
-
-=encoding utf-8
-
-=head1 NAME
-
-Alien::SDL3 - Build and install SDL3
-
-=head1 SYNOPSIS
-
-    use Alien::SDL3; # Don't.
-
-=head1 DESCRIPTION
-
-Alien::SDL3 builds and installs L<SDL3|https://github.com/libsdl-org/SDL/>.
-
-It is not meant for direct use. Just ignore it for now.
-
-=head1 METHODS
-
-=head2 C<dynamic_libs( )>
-
-    my @libs = Alien::SDL3->dynamic_libs;
-
-Returns a list of the dynamic library or shared object files.
-
-=head1 Prerequisites
-
-Depending on your platform, certain development dependencies must be present.
-
-The X11 or Wayland development libraries are required on Linux, *BSD, etc.
-
-=head1 LICENSE
-
-Copyright (C) Sanko Robinson.
-
-This library is free software; you can redistribute it and/or modify it under the terms found in the Artistic License
-2. Other copyrights, terms, and conditions may apply to data transmitted through this module.
-
-=head1 AUTHOR
-
-Sanko Robinson - <https://github.com/sanko>
-
-=cut
+    #
+    1;
