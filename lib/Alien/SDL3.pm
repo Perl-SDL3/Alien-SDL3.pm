@@ -3,7 +3,7 @@ use feature 'class';
 no warnings 'experimental::class';
 use Alien::Xrepo::Runtime;
 #
-class Alien::SDL3 v1.0.0 : isa(Alien::Xrepo::Runtime) {
+class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
 
     # SDL3 is bound as a family: core + the common extension libraries. Each is installed
     # separately (as a SHARED library; xrepo builds SDL3 static by default, and Affix/FFI::Platypus

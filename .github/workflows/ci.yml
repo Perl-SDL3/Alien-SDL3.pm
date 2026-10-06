@@ -208,7 +208,7 @@ jobs:
         cpanm -v .
 
   syslibs:
-    name: System libraries
+    name: Pre-installed libraries
     secrets: inherit
     uses: sanko/workflow-testing/.github/workflows/run-direct.yml@main
     with:
@@ -230,7 +230,7 @@ jobs:
         [
           {"name":"Linux   - Intel","platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5"},
           {"name":"macOS   - Apple Silicon","platform_name":"macos","os":"macos-15","arch":"aarch64","toolchain":"gcc","perl_version":"5.42.3"},
-          {"name":"Windows - Intel","platform_name":"windows","os":"windows-latest","arch":"x86_64","toolchain":"gcc","prepare":"choco install strawberryperl"}
+          {"name":"Windows - Intel","platform_name":"windows","os":"windows-latest","arch":"x86_64","toolchain":"gcc","prepare":"choco install strawberryperl make -y -q; vcpkg install sdl3 sdl3-image sdl3-ttf sdl3-mixer"}
         ]
       task: |
         set -e
@@ -292,18 +292,34 @@ jobs:
           #~ Chocolatey has no SDL3 package at all, so vcpkg (preinstalled on
           #~ the Windows runner images) is the package manager here. Its tree is
           #~ x64 to match Strawberry Perl's gcc.
-          vc="$(command -v vcpkg 2>/dev/null || true)"
-          [ -n "$vc" ] || vc="${VCPKG_INSTALLATION_ROOT:-C:/vcpkg}/vcpkg.exe"
-          echo "vcpkg: $vc"
-          "$vc" install --triplet x64-windows --clean-after-build \
-            sdl3 sdl3-image sdl3-ttf sdl3-mixer
+          vcpkg install sdl3 sdl3-image sdl3-ttf sdl3-mixer
           choco install make -y -q
-          "$vc" list 2>/dev/null | grep -i sdl3 || true
+          export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
+          perl -e 'print qq(perl=\$^X :: \$^O\n)'
           ;;
         esac
         #~ Bootstrap cpanm, then build and install the dist locally as usual.
         curl -L https://cpanmin.us | perl - App::cpanminus
         cpanm -v .
+        cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
+        #~ ExtUtils::Install marks every installed file 0444, and on Windows that
+        #~ flag survives xmake's template copy, so xrepo's `xmake create` dies
+        #~ with "cannot open file ... Permission denied" while rewriting the
+        #~ copied xmake.lua. perl/lib stays read-only; instead mirror the built-in
+        #~ templates into the user's writable xmake global dir, which xmake
+        #~ resolves ahead of its own (read-only) copies. Alien::Xrepo on `dev`
+        #~ does this itself; the mirror here also covers builds that call xmake
+        #~ without it.
+        if [ "$RUNNER_OS" = Windows ]; then
+          #~ xmake's global dir is not simply ~/.xmake on Windows (LOCALAPPDATA),
+          #~ so ask xmake where it is.
+          XGL=$(/c/Strawberry/perl/lib/auto/share/dist/Alien-Xmake/xmake.exe lua -c "import('core.base.global'); print('XREPO_GLOBALDIR=' .. global.directory())" 2>/dev/null | sed -n 's/^XREPO_GLOBALDIR=//p' | tr -d '\r') || true
+          if [ -n "$XGL" ]; then
+            mkdir -p "$XGL/templates"
+            cp -r /c/Strawberry/perl/lib/auto/share/dist/Alien-Xmake/templates/* "$XGL/templates/" 2>/dev/null || true
+            chmod -R u+w "$XGL/templates" || true
+          fi
+        fi
         #~ Audit: the whole family must resolve, whether that came from the
         #~ package manager above or from the local build. This is also the only
         #~ place the leg prints which version of each package actually won,
