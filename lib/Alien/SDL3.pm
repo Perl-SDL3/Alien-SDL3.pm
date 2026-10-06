@@ -2,6 +2,7 @@ use v5.40;
 use feature 'class';
 no warnings 'experimental::class';
 use Alien::Xrepo::Runtime;
+#
 class Alien::SDL3 v1.0.0 : isa(Alien::Xrepo::Runtime) {
 
     # SDL3 is bound as a family: core + the common extension libraries. Each is installed
@@ -31,6 +32,6 @@ class Alien::SDL3 v1.0.0 : isa(Alien::Xrepo::Runtime) {
             local_repos => ['recipes']
         };
     }
-    }
-    #
-    1;
+};
+#
+1;
