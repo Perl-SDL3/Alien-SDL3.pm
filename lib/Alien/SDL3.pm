@@ -2,6 +2,7 @@ use v5.40;
 use feature 'class';
 no warnings 'experimental::class';
 use Alien::Xrepo::Runtime;
+use Config ();
 #
 class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
 
@@ -33,6 +34,20 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
             defaults    => { system => 1 },
             local_repos => ['recipes']
         };
+    }
+
+    # An Alien hands the running Perl a library it must `dlopen`, so the xmake target
+    # architecture has to follow $Config{archname} and not the host machine. The gap is
+    # real on windows-11-arm, where an x64 Strawberry Perl runs under emulation: left to
+    # itself xmake picks the ARM64 host arch, and x64 perl.exe cannot load an arm64 DLL.
+    # Setting -a here keeps target arch, the prebuilt DLL flavour, and the Perl in step.
+    # Returns () when archname is unrecognised, so xmake keeps its usual host default.
+    method install_opts {
+        my $arch = $Config::Config{archname} // '';
+        return ( arch => 'arm64' )  if $arch =~ /(?:^|-)(?:arm64|aarch64)(?:-|$)/i;
+        return ( arch => 'x86_64' ) if $arch =~ /\bx86_64\b|\bamd64\b|(?:^|-)x64(?:-|$)/i;
+        return ( arch => 'x86' )    if $arch =~ /\bi[3-6]86\b|(?:^|-)x86(?:-|$)/i;
+        return ();
     }
 };
 #

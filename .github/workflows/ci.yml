@@ -360,11 +360,17 @@ jobs:
     secrets: inherit
     uses: sanko/workflow-testing/.github/workflows/run-direct.yml@main
     with:
+      #~ The windows-arm leg runs an x64 Strawberry Perl under emulation: there
+      #~ is no arm64 Perl distribution, so every Windows leg builds against the
+      #~ x86_64 prebuilt SDL3 DLLs and the ARM job proves the recipe works on
+      #~ the ARM runner rather than producing native arm64 binaries. `arch`
+      #~ stays aarch64 (it describes the runner and keeps the job name unique)
+      #~ and `variant: x64` records what actually gets built.
       matrix: |
         [
           {"platform_name":"windows","os":"windows-latest","arch":"x86_64","toolchain":"gcc","prepare":"choco install strawberryperl"},
           {"platform_name":"windows","os":"windows-latest","arch":"x86_64","toolchain":"clang","prepare":"choco install llvm strawberryperl"},
-          {"platform_name":"windows-arm","os":"windows-11-arm","arch":"aarch64","toolchain":"gcc","prepare":"choco install make -y; curl -sL -o /c/strawberry.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54051_64bit/strawberry-perl-5.40.5.1-64bit-portable.zip && rm -rf /c/Strawberry; powershell -NoProfile -Command Expand-Archive -Path C:/strawberry.zip -DestinationPath C:/Strawberry -Force -ErrorAction Stop; rm -f /c/strawberry.zip && ln -sf /c/Strawberry/c/bin/gcc.exe /c/Strawberry/c/bin/cc.exe"}
+          {"platform_name":"windows-arm","os":"windows-11-arm","arch":"aarch64","toolchain":"gcc","variant":"x64","prepare":"choco install make -y; curl -sL -o /c/strawberry.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54051_64bit/strawberry-perl-5.40.5.1-64bit-portable.zip && rm -rf /c/Strawberry; powershell -NoProfile -Command Expand-Archive -Path C:/strawberry.zip -DestinationPath C:/Strawberry -Force -ErrorAction Stop; rm -f /c/strawberry.zip && ln -sf /c/Strawberry/c/bin/gcc.exe /c/Strawberry/c/bin/cc.exe"}
         ]
       task: |
         export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
@@ -384,67 +390,6 @@ jobs:
           mkdir -p "$XGL/templates"
           cp -r /c/Strawberry/perl/lib/auto/share/dist/Alien-Xmake/templates/* "$XGL/templates/" 2>/dev/null || true
           chmod -R u+w "$XGL/templates" || true
-        fi
-        #~ Windows aarch64 has no from-source story yet: SDL3's link step
-        #~ leaves nothing xmake can find ("links not found") and xmake cannot
-        #~ re-spawn itself on this runner (execv ... failed(-1), then Perl's
-        #~ "Can't spawn"), after which the run wedges indefinitely. Until ARM
-        #~ builds are supported this leg attempts the build under a short cap,
-        #~ dumps xmake's failed-install log so the failure is diagnosable
-        #~ without a rerun, and treats the failure as non-blocking. Tracked by
-        #~ #3; remove this guard once ARM passes.
-        if [ "$RUNNER_ARCH" = "ARM64" ]; then
-          echo '::warning::Windows/ARM from-source build is unsupported (links not found + xmake self-spawn); 480s cap, failures non-blocking'
-          log="arm-build-$$.log"
-          snap="$PWD/arm-failed-logs"
-          stop="$PWD/arm-watch.stop"
-          rm -rf "$snap" "$stop"
-          mkdir -p "$snap"
-          #~ xmake wipes `installdir.failed` whenever it retries the install
-          #~ (~3.5 min apart), so a fixed cap cannot reliably catch the first
-          #~ failure's install.txt: by the time the cap fires the retry has
-          #~ already destroyed it. Snapshot every failed-install log on a short
-          #~ interval while the build runs; the retry cannot take those copies
-          #~ back.
-          snapshot () {
-            src="$(cygpath -u "${XGL:-$LOCALAPPDATA/.xmake}" 2>/dev/null)"
-            if [ -n "$src" ] && [ -d "$src" ]; then
-              find "$src" -path '*installdir.failed*' -type f 2>/dev/null | while read -r f; do
-                rel="${f#"$src"/}"
-                mkdir -p "$snap/latest/$(dirname "$rel")" "$snap/first/$(dirname "$rel")" 2>/dev/null || true
-                cp -f "$f" "$snap/latest/$rel" 2>/dev/null || true
-                [ -e "$snap/first/$rel" ] || cp -f "$f" "$snap/first/$rel" 2>/dev/null || true
-              done
-            fi
-          }
-          dump_arm () {
-            echo "===== arm build log (tail of $log) ====="
-            tail -n 200 "$log" 2>/dev/null || true
-            #~ Prefer the snapshots: xmake removes the live tree when it retries.
-            for d in "$snap" "$(cygpath -u "${XGL:-$LOCALAPPDATA/.xmake}" 2>/dev/null)"; do
-              if [ -n "$d" ] && [ -d "$d" ]; then
-                echo "===== xmake failed-install tree under $d ====="
-                find "$d" -path '*installdir.failed*' -type f 2>/dev/null | while read -r f; do
-                  echo "----- $f -----"
-                  tail -n 400 "$f" || true
-                done
-              fi
-            done
-            echo "===== end ARM diagnostics ====="
-          }
-          #~ Do NOT background the build and kill it from a watchdog: MSYS kill
-          #~ signals the step's own process group, so the job dies with 143
-          #~ before it can report. GNU timeout runs the build in a separate
-          #~ process group, so the cap stops the build and not the step. The
-          #~ snapshot watcher stops via a sentinel, never a signal.
-          trap 'dump_arm; exit 0' TERM INT
-          ( while [ ! -e "$stop" ]; do snapshot; sleep 3; done ) &
-          watcher=$!
-          /usr/bin/timeout --signal=TERM --kill-after=15 480 cpanm -v . > "$log" 2>&1 || true
-          : > "$stop"
-          wait "$watcher" 2>/dev/null || true
-          dump_arm
-          exit 0
         fi
         cpanm -v .
 name: CI

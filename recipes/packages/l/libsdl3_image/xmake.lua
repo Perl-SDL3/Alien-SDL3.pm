@@ -65,13 +65,122 @@ package("libsdl3_image")
         add_frameworks("CoreFoundation", "CoreGraphics", "ImageIO", "CoreServices")
     end
 
-    add_deps("cmake")
+    -- Not on Windows: that platform installs from the official prebuilt package, so
+    -- there is nothing to compile and cmake would only be pulled in to sit unused
+    -- (a source-built dependency is also the slow, flaky part of the Windows/ARM leg,
+    -- see issue #3).
+    if not is_plat("windows") then
+        add_deps("cmake")
+    end
 
     on_load(function (package)
         package:add("deps", "libsdl3", { configs = { shared = package:config("shared") }})
     end)
 
     on_install(function (package)
+
+        -- See recipes/packages/l/libsdl3/xmake.lua for why Windows installs the official
+        -- prebuilt package instead of compiling, and why the flavour follows the toolchain.
+        -- The sub-arch comes from package:arch(), which Alien::SDL3's install_opts() pins
+        -- to $Config{archname}, so the DLL handed back is the one the running Perl loads.
+        -- Defined inside this callback on purpose: the package-definition scope only
+        -- exposes a read-only `os` (no mkdir/cp/rm), see core/sandbox/sandbox.lua:239.
+        local function _install_windows_prebuilt(package, github_repo, asset_prefix, linkname)
+            local ver = package:version_str()
+            local msvc = package:has_tool("cxx", "cl")
+            local flavour = msvc and "VC" or "mingw"
+            local url = string.format(
+                "https://github.com/libsdl-org/%s/releases/download/release-%s/%s-devel-%s-%s.zip",
+                github_repo, ver, asset_prefix, ver, flavour)
+
+            local cachedir = package:cachedir()
+            os.mkdir(cachedir)
+            local zipfile = path.join(cachedir, string.format("%s-devel-%s-%s.zip", asset_prefix, ver, flavour))
+            if not os.isfile(zipfile) then
+                import("net.http.download")(url, zipfile)
+            end
+            local workdir = path.join(package:builddir(), "prebuilt")
+            os.tryrm(workdir)
+            os.mkdir(workdir)
+            import("utils.archive.extract")(zipfile, workdir)
+
+            -- Both flavours unpack to <prefix>-<version>/ at the archive root.
+            local root = path.join(workdir, string.format("%s-%s", asset_prefix, ver))
+            if not os.isdir(root) then
+                raise("package(%s): %s unpacked without its %s/ root", package:name(), zipfile, asset_prefix .. "-" .. ver)
+            end
+
+            local lower = (package:arch() or ""):lower()
+            local is_x64 = lower:find("x86_64", 1, true) or lower:find("amd64", 1, true) or lower:find("x64", 1, true)
+            local is_arm = lower:find("arm64", 1, true) or lower:find("aarch64", 1, true)
+
+            local incdir, libdir, bindir
+            if msvc then
+                local vcarch = is_arm and "arm64" or (is_x64 and "x64" or "x86")
+                incdir = path.join(root, "include")
+                libdir = path.join(root, "lib", vcarch)
+                bindir = libdir
+            else
+                if is_arm then
+                    raise("package(%s): SDL publishes no mingw arm64 prebuilt; use the MSVC toolchain instead",
+                          package:name())
+                elseif not is_x64 then
+                    -- only i686/x86_64 mingw builds are published
+                    raise("package(%s): no mingw prebuilt for arch %q; use the MSVC toolchain instead",
+                          package:name(), package:arch() or "?")
+                end
+                local triple = "x86_64-w64-mingw32"
+                incdir = path.join(root, triple, "include")
+                libdir = path.join(root, triple, "lib")
+                bindir = path.join(root, triple, "bin")
+            end
+            if not os.isdir(libdir) then
+                raise("package(%s): prebuilt archive has no %s for arch %q", package:name(), libdir, package:arch() or "?")
+            end
+
+            local installdir = package:installdir()
+            local incdst = path.join(installdir, "include")
+            local libdst = path.join(installdir, "lib")
+            local bindst = path.join(installdir, "bin")
+            os.mkdir(incdst); os.mkdir(libdst); os.mkdir(bindst)
+
+            -- Copy the *contents* of include/: a bare-dir cp would nest it one level deeper.
+            os.cp(path.join(incdir, "*"), incdst)
+            -- Import libraries for the linker.
+            for _, pattern in ipairs({"*.lib", "*.dll.a", "*.a"}) do
+                os.cp(path.join(libdir, pattern), libdst)
+            end
+            -- Runtime DLLs. Alien::Xrepo picks libpath -- the file FFI dlopens, which
+            -- t/affix.t load_library()s -- from the first .dll it finds in the install, so
+            -- the DLL must sit in lib/ as well as bin/, and bin/ is what xmake puts on the
+            -- PATH it builds for on_test.
+            os.cp(path.join(libdir, "*.dll"), libdst)
+            os.cp(path.join(bindir, "*.dll"), bindst)
+            os.cp(path.join(bindir, "*.dll"), libdst)
+            -- The VC layout keeps codec DLLs in a side directory next to the main ones.
+            local optional = path.join(libdir, "optional")
+            if os.isdir(optional) then
+                os.cp(path.join(optional, "*.dll"), libdst)
+                os.cp(path.join(optional, "*.dll"), bindst)
+            end
+
+            -- CMake normally publishes these; a manual install has to declare them, or
+            -- _generate_configs() raises "links not found!" for every consumer (including
+            -- this package's own on_test). The dir entries must be relative: the manifest
+            -- reader joins them onto the installdir itself
+            -- (modules/package/manager/xmake/find_package.lua:81,144), so an absolute path
+            -- would come back as installdir/C:/... and find_library would find nothing.
+            package:add("includedirs", "include")
+            package:add("linkdirs", "lib")
+            package:add("bindirs", "bin")
+            package:add("links", linkname)
+        end
+
+        if package:is_plat("windows") then
+            _install_windows_prebuilt(package, "SDL_image", "SDL3_image", "SDL3_image")
+            return
+        end
+
         local configs = {"-DSDLIMAGE_SAMPLES=OFF", "-DSDLIMAGE_TESTS=OFF", "-DSDLIMAGE_VENDORED=OFF"}
         table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
         table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))

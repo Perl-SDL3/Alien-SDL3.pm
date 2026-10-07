@@ -125,7 +125,13 @@ package("libsdl3")
 
     add_patches("3.4.0", "patches/3.4.0/fix-ios.patch", "feffa146aa825f97fc431f115f3990a7a0ad0214d05a9765f2cfbd3633465bf8")
 
-    add_deps("cmake", "egl-headers", "opengl-headers")
+    -- Not on Windows: that platform installs from the official prebuilt package, so
+    -- there is nothing to compile and cmake plus the GL headers would only be pulled
+    -- in to sit unused (a source-built freetype/cmake is also the slow, flaky part of
+    -- the Windows/ARM leg, see issue #3).
+    if not is_plat("windows") then
+        add_deps("cmake", "egl-headers", "opengl-headers")
+    end
 
     if is_plat("linux", "bsd", "cross") then
         add_configs("x11", {description = "Enables X11 support", default = true, type = "boolean"})
@@ -226,6 +232,121 @@ package("libsdl3")
     end)
 
     on_install(function (package)
+        -- Windows has no working from-source story for this family yet
+        -- (https://github.com/Perl-SDL3/Alien-SDL3.pm/issues/3: the toolchain in play is
+        -- x64 gcc running under emulation on windows-11-arm, and xmake picks the ARM64
+        -- host arch, which no part of the toolchain can actually produce). The Alien is
+        -- consumed through FFI, which needs only a shared library and its headers, so
+        -- install the matching official prebuilt package instead of compiling:
+        --   * MSVC  -> <prefix>-devel-<ver>-VC.zip     root/lib/{x86,x64,arm64}
+        --   * MinGW -> <prefix>-devel-<ver>-mingw.zip  <triple>/{bin,include,lib}
+        -- The flavour follows the *toolchain*, not the OS, so that on_test -- which
+        -- compiles and links a probe after every install -- gets an import library the
+        -- active linker can use: gcc wants the mingw .dll.a, cl wants the VC .lib. The
+        -- archive for the other toolchain is never fetched. The sub-arch comes from
+        -- package:arch(), which Alien::SDL3's install_opts() pins to $Config{archname},
+        -- so the DLL handed back is the one the running Perl can load.
+        -- This helper is deliberately defined *inside* the callback: sandbox.new()
+        -- setfenv()s only the script itself (core/sandbox/sandbox.lua:239), so a
+        -- chunk-level local function keeps the package script's read-only `os`
+        -- (isfile/isdir/files/dirs only -- no mkdir/cp/rm) and dies on first use.
+        local function _install_windows_prebuilt(package, github_repo, asset_prefix, linkname)
+            local ver = package:version_str()
+            local msvc = package:has_tool("cxx", "cl")
+            local flavour = msvc and "VC" or "mingw"
+            local url = string.format(
+                "https://github.com/libsdl-org/%s/releases/download/release-%s/%s-devel-%s-%s.zip",
+                github_repo, ver, asset_prefix, ver, flavour)
+
+            local cachedir = package:cachedir()
+            os.mkdir(cachedir)
+            local zipfile = path.join(cachedir, string.format("%s-devel-%s-%s.zip", asset_prefix, ver, flavour))
+            if not os.isfile(zipfile) then
+                import("net.http.download")(url, zipfile)
+            end
+            local workdir = path.join(package:builddir(), "prebuilt")
+            os.tryrm(workdir)
+            os.mkdir(workdir)
+            import("utils.archive.extract")(zipfile, workdir)
+
+            -- Both flavours unpack to <prefix>-<version>/ at the archive root.
+            local root = path.join(workdir, string.format("%s-%s", asset_prefix, ver))
+            if not os.isdir(root) then
+                raise("package(%s): %s unpacked without its %s/ root", package:name(), zipfile, asset_prefix .. "-" .. ver)
+            end
+
+            local lower = (package:arch() or ""):lower()
+            local is_x64 = lower:find("x86_64", 1, true) or lower:find("amd64", 1, true) or lower:find("x64", 1, true)
+            local is_arm = lower:find("arm64", 1, true) or lower:find("aarch64", 1, true)
+
+            local incdir, libdir, bindir
+            if msvc then
+                local vcarch = is_arm and "arm64" or (is_x64 and "x64" or "x86")
+                incdir = path.join(root, "include")
+                libdir = path.join(root, "lib", vcarch)
+                bindir = libdir
+            else
+                if not (is_x64 or is_arm) then
+                    -- only i686/x86_64 mingw builds are published
+                    raise("package(%s): no mingw prebuilt for arch %q; use the MSVC toolchain instead",
+                          package:name(), package:arch() or "?")
+                end
+                if is_arm then
+                    raise("package(%s): SDL publishes no mingw arm64 prebuilt; use the MSVC toolchain instead",
+                          package:name())
+                end
+                local triple = "x86_64-w64-mingw32"
+                incdir = path.join(root, triple, "include")
+                libdir = path.join(root, triple, "lib")
+                bindir = path.join(root, triple, "bin")
+            end
+            if not os.isdir(libdir) then
+                raise("package(%s): prebuilt archive has no %s for arch %q", package:name(), libdir, package:arch() or "?")
+            end
+
+            local installdir = package:installdir()
+            local incdst = path.join(installdir, "include")
+            local libdst = path.join(installdir, "lib")
+            local bindst = path.join(installdir, "bin")
+            os.mkdir(incdst); os.mkdir(libdst); os.mkdir(bindst)
+
+            -- Copy the *contents* of include/: a bare-dir cp would nest it as include/SDL3-3.4.18.
+            os.cp(path.join(incdir, "*"), incdst)
+            -- Import libraries for the linker.
+            for _, pattern in ipairs({"*.lib", "*.dll.a", "*.a"}) do
+                os.cp(path.join(libdir, pattern), libdst)
+            end
+            -- Runtime DLLs. Alien::Xrepo picks libpath -- the file FFI dlopens, which
+            -- t/affix.t load_library()s -- from the first .dll found in linkdirs, so the
+            -- DLL must live in lib/ as well as in bin/, which is what puts it on the
+            -- PATH that xmake builds for on_test.
+            os.cp(path.join(libdir, "*.dll"), libdst)
+            os.cp(path.join(bindir, "*.dll"), bindst)
+            os.cp(path.join(bindir, "*.dll"), libdst)
+            -- image/mixer ship codec DLLs in a side directory of the VC layout only.
+            local optional = path.join(libdir, "optional")
+            if os.isdir(optional) then
+                os.cp(path.join(optional, "*.dll"), libdst)
+                os.cp(path.join(optional, "*.dll"), bindst)
+            end
+
+            -- CMake normally publishes these; a manual install has to declare them, or
+            -- _generate_configs() raises "links not found!" for every consumer (including
+            -- this package's own on_test). The dir entries must be relative: the manifest
+            -- reader joins them onto the installdir itself
+            -- (modules/package/manager/xmake/find_package.lua:81,144), so an absolute path
+            -- would come back as installdir/C:/... and find_library would find nothing.
+            package:add("includedirs", "include")
+            package:add("linkdirs", "lib")
+            package:add("bindirs", "bin")
+            package:add("links", linkname)
+        end
+
+        if package:is_plat("windows") then
+            _install_windows_prebuilt(package, "SDL", "SDL3", "SDL3")
+            return
+        end
+
         local configs = {}
         table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
         table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
