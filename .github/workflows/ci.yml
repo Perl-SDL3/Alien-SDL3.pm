@@ -385,6 +385,30 @@ jobs:
           cp -r /c/Strawberry/perl/lib/auto/share/dist/Alien-Xmake/templates/* "$XGL/templates/" 2>/dev/null || true
           chmod -R u+w "$XGL/templates" || true
         fi
+        #~ Windows aarch64 has no from-source story yet: SDL3's link step
+        #~ leaves nothing xmake can find ("links not found") and xmake cannot
+        #~ re-spawn itself on this runner (execv ... failed(-1), then Perl's
+        #~ "Can't spawn"), after which the run wedges indefinitely. Until ARM
+        #~ builds are supported this leg attempts the build under a timeout and
+        #~ treats any failure as non-blocking, so it fails fast instead of
+        #~ hanging for hours. Tracked by #3; remove this guard once ARM passes.
+        if [ "$RUNNER_ARCH" = "ARM64" ]; then
+          echo '::warning::Windows/ARM from-source build is unsupported (links not found + xmake self-spawn); running under a timeout, failures are non-blocking'
+          log="arm-build-$$.log"
+          cpanm -v . > "$log" 2>&1 &
+          build_pid=$!
+          ( sleep 1500; kill -TERM "$build_pid" 2>/dev/null ) &
+          watchdog_pid=$!
+          wait "$build_pid"; rc=$?
+          kill "$watchdog_pid" 2>/dev/null || true
+          #~ The build's own stdout went to $log, so the step cannot be held
+          #~ open by a surviving xmake child when the watchdog fires.
+          tail -n 200 "$log" || true
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning::Windows/ARM build failed (exit $rc); non-blocking until ARM is supported"
+          fi
+          exit 0
+        fi
         cpanm -v .
 name: CI
 on:
