@@ -377,10 +377,10 @@ jobs:
         perl -e 'print qq(perl=\$^X :: \$^O\n)'
         curl -L https://cpanmin.us | perl - App::cpanminus
         command -v cpanm
-        #~ Same order as the syslibs leg (see there for why): Alien::Xrepo from
-        #~ `dev` and the template mirror both have to be in place before the
-        #~ build, because that is when the family installs.
-        cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
+        #~ Same order as the syslibs leg (see there for why): a current
+        #~ Alien::Xrepo (v1.0.4) and the template mirror both have to be in
+        #~ place before the build, because that is when the family installs.
+        cpanm -v -n Alien::Xrepo
         #~ Same template mirror as the syslibs leg (see there for why): xrepo's
         #~ `xmake create` cannot rewrite an Alien::Xmake template that
         #~ ExtUtils::Install left read-only, so seed a writable per-user copy in
