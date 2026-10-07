@@ -74,7 +74,7 @@
          "version" : "v3.4.18"
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/Perl-SDL3/Alien-SDL3.pm/issues"

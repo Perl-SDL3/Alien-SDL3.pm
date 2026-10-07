@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated to SDL3 3.4.16
+- Updated to SDL3 3.4.18
+- Install satellite libs SDL_image (v3.4.8), SDL_ttf (v3.2.2), and SDL_mixer (v3.2.4)
+- Use `Alien::Xrepo` to locate, build, or install a prebuilt libs unless a system install meets our version requirements
 
 ## [v3.4.2] - 2026-02-22
 
