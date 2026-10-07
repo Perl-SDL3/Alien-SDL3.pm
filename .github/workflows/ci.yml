@@ -389,21 +389,39 @@ jobs:
         #~ leaves nothing xmake can find ("links not found") and xmake cannot
         #~ re-spawn itself on this runner (execv ... failed(-1), then Perl's
         #~ "Can't spawn"), after which the run wedges indefinitely. Until ARM
-        #~ builds are supported this leg attempts the build under a timeout and
-        #~ treats any failure as non-blocking, so it fails fast instead of
-        #~ hanging for hours. Tracked by #3; remove this guard once ARM passes.
+        #~ builds are supported this leg attempts the build under a short cap,
+        #~ dumps xmake's failed-install log so the failure is diagnosable
+        #~ without a rerun, and treats the failure as non-blocking. Tracked by
+        #~ #3; remove this guard once ARM passes.
         if [ "$RUNNER_ARCH" = "ARM64" ]; then
-          echo '::warning::Windows/ARM from-source build is unsupported (links not found + xmake self-spawn); running under a timeout, failures are non-blocking'
+          echo '::warning::Windows/ARM from-source build is unsupported (links not found + xmake self-spawn); 600s cap, failures non-blocking'
           log="arm-build-$$.log"
           cpanm -v . > "$log" 2>&1 &
           build_pid=$!
-          ( sleep 1500; kill -TERM "$build_pid" 2>/dev/null ) &
+          ( sleep 600; kill -TERM "$build_pid" 2>/dev/null; sleep 5; kill -KILL "$build_pid" 2>/dev/null ) &
           watchdog_pid=$!
           wait "$build_pid"; rc=$?
           kill "$watchdog_pid" 2>/dev/null || true
           #~ The build's own stdout went to $log, so the step cannot be held
           #~ open by a surviving xmake child when the watchdog fires.
+          echo "===== arm build log (tail of $log) ====="
           tail -n 200 "$log" || true
+          #~ xmake drops the per-package build/install log beside the failed
+          #~ install dir. Surface it here instead of only on the ephemeral
+          #~ runner. $XGL is xmake's global dir (resolved above); fall back to
+          #~ the default location when it did not resolve.
+          pkgcache="$XGL"
+          [ -n "$pkgcache" ] || pkgcache="$LOCALAPPDATA/.xmake"
+          echo "===== xmake failed-install logs under $pkgcache ====="
+          if [ -d "$pkgcache/cache/packages" ]; then
+            find "$pkgcache/cache/packages" -path '*installdir.failed*' -type f 2>/dev/null | while read -r f; do
+              echo "----- $f -----"
+              tail -n 300 "$f" || true
+            done
+          else
+            echo "no xmake package cache at $pkgcache/cache/packages"
+          fi
+          echo "===== end ARM diagnostics ====="
           if [ "$rc" -ne 0 ]; then
             echo "::warning::Windows/ARM build failed (exit $rc); non-blocking until ARM is supported"
           fi
