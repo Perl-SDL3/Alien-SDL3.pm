@@ -2,7 +2,7 @@
 ; Run "tidyall -g" to process all added or modified files in the current git working directory.
 ; https://perladvent.org/2020/2020-12-01.html
 
-ignore = **/*.bak **/_*.pm blib/**/* builder/_alien/**/* extract/**/* dyncall/**/* blib/**/* share/**/*
+ignore = **/*.bak **/_*.pm blib/**/* builder/_alien/**/* extract/**/* _build_xmake/**/* eg/xmake-inst/**/* t/test/**/* eg/test/**/*
 
 [PerlTidy]
 select = **/*.{pl,pm,t}
@@ -21,17 +21,25 @@ columns = 120
 
 [PodChecker]
 select = **/*.{pl,pm,pod}
+warnings = 1
 
 ;[Test::Vars]
-;select = **/*.{pl,pl.in,pm,t}
+;select = **/*.{pl,pm,t}
 
 ;[PodSpell]
-;select = **/*.{pl,pl.in,pm,pod}
+;select = **/*.{pl,pm,pod}
+;ispell_argv = -p $ROOT/.ispell_english
+;suggest = 1
 
 [ClangFormat]
-select = **/*.{cpp,cxx,h,c,xs,xsh}
-ignore = **/ppport.h
+select = **/*.{hpp,cpp,cxx,h,c}
 ; see .clang-format
 
 ;[YAML]
 ;select = .github/**/*.{yaml,yml}
+
+[JSON]
+;select = **/*.json
+select = META.json
+ascii = 1
+
