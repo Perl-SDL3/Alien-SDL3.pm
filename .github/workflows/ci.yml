@@ -300,15 +300,12 @@ jobs:
         esac
         #~ Bootstrap cpanm.
         curl -L https://cpanmin.us | perl - App::cpanminus
-        #~ A current Alien::Xrepo must be in place BEFORE the dist builds, never
-        #~ after: the family installs during `cpanm -v .`, and v1.0.3 on CPAN
-        #~ lacked _ensure_templates_available, so on Windows xmake's `xmake
-        #~ create` rewrites a template ExtUtils::Install left 0444, dies with
-        #~ "Permission denied", every family member fails, and the audit below
-        #~ reads an empty snapshot. v1.0.4 (now on CPAN) fixes that and resolves
-        #~ a package's runtime DLL from its links; pin it here rather than
-        #~ trusting resolver ordering.
-        cpanm -v -n Alien::Xrepo
+        #~ Alien::Xrepo v1.0.4 needs no manual step: it is a declared
+        #~ prerequisite (configure/build_requires Alien::Xrepo::MB, requires
+        #~ Alien::Xrepo::Runtime), so `cpanm -v .` installs it before this dist
+        #~ configures. v1.0.4 fixed the readonly-template handling
+        #~ (_ensure_templates_available) and resolves a package's runtime DLL
+        #~ from its links; the old `dev` pin predates that release.
         #~ ExtUtils::Install marks every installed file 0444, and on Windows that
         #~ flag survives xmake's template copy, so xrepo's `xmake create` dies
         #~ with "cannot open file ... Permission denied" while rewriting the
@@ -377,14 +374,6 @@ jobs:
         perl -e 'print qq(perl=\$^X :: \$^O\n)'
         curl -L https://cpanmin.us | perl - App::cpanminus
         command -v cpanm
-        #~ Same order as the syslibs leg (see there for why): a current
-        #~ Alien::Xrepo (v1.0.4) and the template mirror both have to be in
-        #~ place before the build, because that is when the family installs.
-        cpanm -v -n Alien::Xrepo
-        #~ Same template mirror as the syslibs leg (see there for why): xrepo's
-        #~ `xmake create` cannot rewrite an Alien::Xmake template that
-        #~ ExtUtils::Install left read-only, so seed a writable per-user copy in
-        #~ xmake's global dir.
         XGL=$(/c/Strawberry/perl/lib/auto/share/dist/Alien-Xmake/xmake.exe lua -c "import('core.base.global'); print('XREPO_GLOBALDIR=' .. global.directory())" 2>/dev/null | sed -n 's/^XREPO_GLOBALDIR=//p' | tr -d '\r') || true
         if [ -n "$XGL" ]; then
           mkdir -p "$XGL/templates"
