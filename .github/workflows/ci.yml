@@ -409,18 +409,22 @@ jobs:
           snapshot () {
             src="$(cygpath -u "${XGL:-$LOCALAPPDATA/.xmake}" 2>/dev/null)"
             if [ -n "$src" ] && [ -d "$src" ]; then
-              find "$src" -path '*installdir.failed*' -name 'install.txt' -type f \
-                -exec cp -f --parents {} "$snap" \; 2>/dev/null || true
+              find "$src" -path '*installdir.failed*' -type f 2>/dev/null | while read -r f; do
+                rel="${f#"$src"/}"
+                mkdir -p "$snap/latest/$(dirname "$rel")" "$snap/first/$(dirname "$rel")" 2>/dev/null || true
+                cp -f "$f" "$snap/latest/$rel" 2>/dev/null || true
+                [ -e "$snap/first/$rel" ] || cp -f "$f" "$snap/first/$rel" 2>/dev/null || true
+              done
             fi
           }
           dump_arm () {
             echo "===== arm build log (tail of $log) ====="
             tail -n 200 "$log" 2>/dev/null || true
-            #~ Prefer the snapshots: xmake removes the live log when it retries.
+            #~ Prefer the snapshots: xmake removes the live tree when it retries.
             for d in "$snap" "$(cygpath -u "${XGL:-$LOCALAPPDATA/.xmake}" 2>/dev/null)"; do
               if [ -n "$d" ] && [ -d "$d" ]; then
-                echo "===== xmake failed-install logs under $d ====="
-                find "$d" -path '*installdir.failed*' -name 'install.txt' -type f 2>/dev/null | while read -r f; do
+                echo "===== xmake failed-install tree under $d ====="
+                find "$d" -path '*installdir.failed*' -type f 2>/dev/null | while read -r f; do
                   echo "----- $f -----"
                   tail -n 400 "$f" || true
                 done
