@@ -3,6 +3,7 @@
 -- Deviations from packages/l/libsdl3/xmake.lua in xmake-repo:
 --   * builds sdl3 v 3.4.18
 --   * gates the add_extsources() system path on a minimum version
+--   * declares a Windows/vcpkg extsource; upstream declares none on Windows
 -- Keep this file in sync with the upstream recipe when bumping versions.
 --
 package("libsdl3")
@@ -20,6 +21,8 @@ package("libsdl3")
         add_extsources("pacman::sdl3", "apt::libsdl3-dev")
     elseif is_plat("macosx") then
         add_extsources("brew::sdl3")
+    elseif is_plat("windows") then
+        add_extsources("vcpkg::sdl3")
     end
 
     -- add_extsources() only says *where* to look, never *which versions are
@@ -32,10 +35,10 @@ package("libsdl3")
     -- The probe below mirrors the candidate list xmake's own fallback uses
     -- (extsources, then the bare package name -- @see
     -- core/package/package.lua:1978-1998), so the only thing it changes is which
-    -- versions are accepted. Note that the bare name is self:name(), i.e.
-    -- "libsdl3", while the vcpkg port is "sdl3"; a bare-name probe therefore does
-    -- not match vcpkg on Windows. That matches the fallback exactly, so this
-    -- recipe neither gains nor loses coverage there.
+    -- versions are accepted. The bare name is self:name(), i.e. "libsdl3", while
+    -- the vcpkg port is "sdl3", so bare-name probing never reaches vcpkg; the
+    -- explicit vcpkg::sdl3 extsource declared above is what puts vcpkg (and this
+    -- gate) on the Windows candidate list at all.
     on_fetch(function (self, opt)
         if not opt.system then
             -- Not a system install: let the normal from-xmake-repo path run.
@@ -75,8 +78,8 @@ package("libsdl3")
                 -- fallback -- @see core/package/package.lua _fetch_library -- so
                 -- the too-old package is skipped and we build the pinned release
                 -- instead. Returning nil here would hand it straight back.
-                print("libsdl3: system SDL3 %s is older than %s, building from source",
-                      found or "of unknown version", _MIN_SYSTEM_VERSION)
+                print(string.format("libsdl3: system SDL3 %s is older than %s, building from source",
+                      found or "of unknown version", _MIN_SYSTEM_VERSION))
                 return false
             end
         end

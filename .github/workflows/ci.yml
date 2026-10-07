@@ -238,7 +238,7 @@ jobs:
         #~ Install the SDL3 family and everything it links against through the
         #~ platform package manager *before* the local build runs. The recipes
         #~ declare add_extsources("apt::libsdl3-dev", "brew::sdl3",
-        #~ "pacman::SDL3"), so a packaged SDL3 flips xrepo from a from-source
+        #~ "pacman::SDL3", "vcpkg::sdl3"), so a packaged SDL3 flips xrepo from a from-source
         #~ build to the distro library, and this leg is the only coverage of
         #~ that path: it catches a distro SDL3 drifting away from the recipe we
         #~ pin, and it leaves the codec/font/audio headers on disk so the
@@ -298,9 +298,16 @@ jobs:
           perl -e 'print qq(perl=\$^X :: \$^O\n)'
           ;;
         esac
-        #~ Bootstrap cpanm, then build and install the dist locally as usual.
+        #~ Bootstrap cpanm.
         curl -L https://cpanmin.us | perl - App::cpanminus
-        cpanm -v .
+        #~ Alien::Xrepo from `dev` BEFORE the dist builds, never after. The
+        #~ family installs during `cpanm -v .`, and CPAN's Alien::Xrepo v1.0.3
+        #~ has no _ensure_templates_available, so on Windows xmake's
+        #~ `xmake create` rewrites a template ExtUtils::Install left 0444, dies
+        #~ with "Permission denied", every family member fails, and the audit
+        #~ below reads an empty snapshot. `dev` fixes that itself and reports the
+        #~ same v1.0.3 the dist requires, so `cpanm -v .` leaves it alone instead
+        #~ of pulling CPAN's copy back over it.
         cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
         #~ ExtUtils::Install marks every installed file 0444, and on Windows that
         #~ flag survives xmake's template copy, so xrepo's `xmake create` dies
@@ -320,6 +327,11 @@ jobs:
             chmod -R u+w "$XGL/templates" || true
           fi
         fi
+        #~ Build and install the dist locally as usual. On Windows the family
+        #~ compiles from source here -- vcpkg's SDL3 is older than the recipe's
+        #~ 3.4.18 gate and the extension recipes follow that verdict -- and the
+        #~ snapshot written under blib is what the audit below reads.
+        cpanm -v .
         #~ Audit: the whole family must resolve, whether that came from the
         #~ package manager above or from the local build. This is also the only
         #~ place the leg prints which version of each package actually won,
@@ -359,6 +371,20 @@ jobs:
         perl -e 'print qq(perl=\$^X :: \$^O\n)'
         curl -L https://cpanmin.us | perl - App::cpanminus
         command -v cpanm
+        #~ Same order as the syslibs leg (see there for why): Alien::Xrepo from
+        #~ `dev` and the template mirror both have to be in place before the
+        #~ build, because that is when the family installs.
+        cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
+        #~ Same template mirror as the syslibs leg (see there for why): xrepo's
+        #~ `xmake create` cannot rewrite an Alien::Xmake template that
+        #~ ExtUtils::Install left read-only, so seed a writable per-user copy in
+        #~ xmake's global dir.
+        XGL=$(/c/Strawberry/perl/lib/auto/share/dist/Alien-Xmake/xmake.exe lua -c "import('core.base.global'); print('XREPO_GLOBALDIR=' .. global.directory())" 2>/dev/null | sed -n 's/^XREPO_GLOBALDIR=//p' | tr -d '\r') || true
+        if [ -n "$XGL" ]; then
+          mkdir -p "$XGL/templates"
+          cp -r /c/Strawberry/perl/lib/auto/share/dist/Alien-Xmake/templates/* "$XGL/templates/" 2>/dev/null || true
+          chmod -R u+w "$XGL/templates" || true
+        fi
         cpanm -v .
 name: CI
 on:

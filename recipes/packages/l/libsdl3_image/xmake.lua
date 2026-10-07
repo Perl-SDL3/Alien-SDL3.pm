@@ -1,0 +1,83 @@
+-- Local override of the xmake-repo package recipe for libsdl3_image.
+--
+-- Deviations from packages/l/libsdl3_image/xmake.lua in xmake-repo:
+--   * adds a Windows/vcpkg extsource plus an on_fetch gate that refuses it
+--     unless the system core passes the core recipe's own version gate.
+-- Keep this file in sync with the upstream recipe when bumping versions.
+--
+package("libsdl3_image")
+    set_homepage("https://github.com/libsdl-org/SDL_image")
+    set_description("Image decoding for many popular formats for Simple Directmedia Layer.")
+    set_license("zlib")
+
+    if is_plat("mingw") and is_subhost("msys") then
+        add_extsources("pacman::sdl3-image")
+    elseif is_plat("linux") then
+        add_extsources("apt::libsdl3-image-dev")
+    elseif is_plat("macosx") then
+        add_extsources("brew::sdl3_image")
+    elseif is_plat("windows") then
+        add_extsources("vcpkg::sdl3-image")
+    end
+
+    -- Windows/vcpkg only: never take vcpkg's extension while the system core
+    -- fails the core recipe's own gate -- that is how the family ends up half
+    -- system, half source-built, with two SDL3 ABIs in one link. This mirrors
+    -- recipes/packages/l/libsdl3/xmake.lua on_fetch: vcpkg is the only system
+    -- source on Windows, and the version floor is read from the same port
+    -- revision format (keep "3.4.18" in sync with _MIN_SYSTEM_VERSION there).
+    -- nil lets xmake's normal candidates run; false disables the system path
+    -- outright -- @see core/package/package.lua _fetch_library.
+    on_fetch(function (self, opt)
+        if not opt.system or not self:is_plat("windows") then
+            return
+        end
+        local semver = import("core.base.semver")
+        local core = self:find_package("vcpkg::sdl3", {system = true})
+        if not core then
+            -- The core is going to come from source here; keep the extension
+            -- with it rather than linking it against vcpkg's SDL3.
+            return false
+        end
+        local comparable = (core.version or ""):gsub("%-%d+$", "")
+        local satisfies = try {
+            function () return semver.satisfies(comparable, ">=3.4.18") end
+        }
+        if not satisfies then
+            print(string.format("libsdl3_image: vcpkg SDL3 core %s is older than 3.4.18, building from source",
+                  core.version or "of unknown version"))
+            return false
+        end
+        return self:find_package("vcpkg::sdl3-image", {system = true})
+    end)
+
+    add_urls("https://www.libsdl.org/projects/SDL_image/release/SDL3_image-$(version).zip",
+             "https://github.com/libsdl-org/SDL_image/releases/download/release-$(version)/SDL3_image-$(version).zip", { alias = "archive" })
+    add_urls("https://github.com/libsdl-org/SDL_image.git", { alias = "github" })
+
+    add_versions("archive:3.4.0", "158d89a217afc9869d85dcef58800ea90626fa0c96c588979055cb34f567bd7f")
+    add_versions("archive:3.2.0", "144715a6afae430adc275fd3ab0e3e96177a2752cc10a49ca78511b1e665964e")
+
+    add_versions("github:3.4.0", "release-3.4.0")
+    add_versions("github:3.2.0", "release-3.2.0")
+
+    if is_plat("macosx", "iphoneos") then
+        add_frameworks("CoreFoundation", "CoreGraphics", "ImageIO", "CoreServices")
+    end
+
+    add_deps("cmake")
+
+    on_load(function (package)
+        package:add("deps", "libsdl3", { configs = { shared = package:config("shared") }})
+    end)
+
+    on_install(function (package)
+        local configs = {"-DSDLIMAGE_SAMPLES=OFF", "-DSDLIMAGE_TESTS=OFF", "-DSDLIMAGE_VENDORED=OFF"}
+        table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
+        table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
+        import("package.tools.cmake").install(package, configs)
+    end)
+
+    on_test(function (package)
+        assert(package:has_cfuncs("IMG_Version", {includes = "SDL3_image/SDL_image.h"}))
+    end)

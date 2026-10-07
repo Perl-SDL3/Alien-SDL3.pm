@@ -20,6 +20,8 @@
 --     resolves non-system; when it doesn't, CMake's `find_package(ZLIB REQUIRED)`
 --     fails the whole install. TTF itself needs no gzip'd font support, so disable
 --     zlib to keep the freetype build self-contained everywhere.
+--   * adds a Windows/vcpkg extsource plus an on_fetch gate that refuses it
+--     unless the system core passes the core recipe's own version gate.
 -- Keep this file in sync with the upstream recipe when bumping versions.
 --
 package("libsdl3_ttf")
@@ -33,7 +35,40 @@ package("libsdl3_ttf")
         add_extsources("pacman::sdl3_ttf", "apt::libsdl3-ttf-dev")
     elseif is_plat("macosx") then
         add_extsources("brew::sdl3_ttf")
+    elseif is_plat("windows") then
+        add_extsources("vcpkg::sdl3-ttf")
     end
+
+    -- Windows/vcpkg only: never take vcpkg's extension while the system core
+    -- fails the core recipe's own gate -- that is how the family ends up half
+    -- system, half source-built, with two SDL3 ABIs in one link. This mirrors
+    -- recipes/packages/l/libsdl3/xmake.lua on_fetch: vcpkg is the only system
+    -- source on Windows, and the version floor is read from the same port
+    -- revision format (keep "3.4.18" in sync with _MIN_SYSTEM_VERSION there).
+    -- nil lets xmake's normal candidates run; false disables the system path
+    -- outright -- @see core/package/package.lua _fetch_library.
+    on_fetch(function (self, opt)
+        if not opt.system or not self:is_plat("windows") then
+            return
+        end
+        local semver = import("core.base.semver")
+        local core = self:find_package("vcpkg::sdl3", {system = true})
+        if not core then
+            -- The core is going to come from source here; keep the extension
+            -- with it rather than linking it against vcpkg's SDL3.
+            return false
+        end
+        local comparable = (core.version or ""):gsub("%-%d+$", "")
+        local satisfies = try {
+            function () return semver.satisfies(comparable, ">=3.4.18") end
+        }
+        if not satisfies then
+            print(string.format("libsdl3_ttf: vcpkg SDL3 core %s is older than 3.4.18, building from source",
+                  core.version or "of unknown version"))
+            return false
+        end
+        return self:find_package("vcpkg::sdl3-ttf", {system = true})
+    end)
 
     add_urls("https://www.libsdl.org/projects/SDL_ttf/release/SDL3_ttf-$(version).zip",
              "https://github.com/libsdl-org/SDL_ttf/releases/download/release-$(version)/SDL3_ttf-$(version).zip", { alias = "archive" })

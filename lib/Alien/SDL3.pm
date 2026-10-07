@@ -10,9 +10,9 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
     # need a real .dll/.so/.dylib) and exposed via the Alien::Build-style `alt()` accessor or a
     # package-name argument.
     #
-    # recipes/ is a small local xmake-repo tree (the libsdl3_ttf override); registering it here
-    # means the runtime description also carries everything the engine needs to reproduce the
-    # build.
+    # recipes/ is a small local xmake-repo tree (local overrides of libsdl3, libsdl3_image,
+    # libsdl3_ttf and libsdl3_mixer); registering it here means the runtime description also
+    # carries everything the engine needs to reproduce the build.
     method recipe {
         return {
             name     => 'Alien-SDL3',
@@ -23,11 +23,13 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
                 { name => 'libsdl3_mixer', kind => 'shared' }
             ],
 
-            # Ask for system packages explicitly: distro/brew copies of SDL3 and friends are preferred over
-            # building the pinned sources, and anything the system does not provide still falls back to a
-            # source build. Note this is deliberately not a hard requirement -- recipes/packages/l/libsdl3/
-            # xmake.lua gates the system path on SDL3 >= 3.4.18, so an older distro copy (eg Ubuntu's 3.4.2)
-            # is skipped rather than mixed with the 3.4.18 headers the extension libraries build against.
+            # Ask for system packages explicitly: package-manager copies of SDL3 and friends (apt, brew,
+            # vcpkg, ...) are preferred over building the pinned sources, and anything the system does not
+            # provide still falls back to a source build. Note this is deliberately not a hard requirement
+            # -- recipes/packages/l/libsdl3/xmake.lua gates the system path on SDL3 >= 3.4.18, so an older
+            # copy (eg Ubuntu's 3.4.2 or vcpkg's 3.4.16) is skipped rather than mixed with the 3.4.18
+            # headers the extension libraries build against, and on Windows the extension recipes re-check
+            # that same verdict so the family never splits across sources.
             defaults    => { system => 1 },
             local_repos => ['recipes']
         };
