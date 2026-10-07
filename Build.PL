@@ -10,5 +10,6 @@ Alien::Xrepo::MB->new(
     requires           => { 'perl'             => 'v5.40.0', 'Alien::Xrepo::Runtime' => 'v1.0.4', 'File::ShareDir' => '1.00' },
     configure_requires => { 'Alien::Xrepo::MB' => 'v1.0.4', 'Module::Build' => 0 },
     build_requires     => { 'Alien::Xrepo::MB' => 'v1.0.4' },
-    test_requires      => { 'Test2::V0'        => 0 }
+    test_requires      => { 'Test2::V0'        => 0 },
+    recommends         => { 'Affix'            => 0 }
 )->create_build_script;
