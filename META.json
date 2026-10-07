@@ -34,8 +34,8 @@
       "configure" : {
          "requires" : {
             "Alien::Xmake" : "v1.0.4",
-            "Alien::Xrepo" : "v1.0.3",
-            "Alien::Xrepo::Build" : "v1.0.3",
+            "Alien::Xrepo" : "v1.0.4",
+            "Alien::Xrepo::Build" : "v1.0.4",
             "Alien::Xrepo::MB" : "0",
             "CPAN::Meta" : "0",
             "Config" : "0",
@@ -52,8 +52,8 @@
             "Affix" : "0"
          },
          "requires" : {
-            "Alien::Xrepo::Build" : "v1.0.3",
-            "Alien::Xrepo::Runtime" : "v1.0.3",
+            "Alien::Xrepo::Build" : "v1.0.4",
+            "Alien::Xrepo::Runtime" : "v1.0.4",
             "File::ShareDir" : "1.00",
             "Path::Tiny" : "0",
             "perl" : "5.040000"

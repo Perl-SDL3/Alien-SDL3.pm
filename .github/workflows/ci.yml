@@ -300,21 +300,21 @@ jobs:
         esac
         #~ Bootstrap cpanm.
         curl -L https://cpanmin.us | perl - App::cpanminus
-        #~ Alien::Xrepo from `dev` BEFORE the dist builds, never after. The
-        #~ family installs during `cpanm -v .`, and CPAN's Alien::Xrepo v1.0.3
-        #~ has no _ensure_templates_available, so on Windows xmake's
-        #~ `xmake create` rewrites a template ExtUtils::Install left 0444, dies
-        #~ with "Permission denied", every family member fails, and the audit
-        #~ below reads an empty snapshot. `dev` fixes that itself and reports the
-        #~ same v1.0.3 the dist requires, so `cpanm -v .` leaves it alone instead
-        #~ of pulling CPAN's copy back over it.
-        cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
+        #~ A current Alien::Xrepo must be in place BEFORE the dist builds, never
+        #~ after: the family installs during `cpanm -v .`, and v1.0.3 on CPAN
+        #~ lacked _ensure_templates_available, so on Windows xmake's `xmake
+        #~ create` rewrites a template ExtUtils::Install left 0444, dies with
+        #~ "Permission denied", every family member fails, and the audit below
+        #~ reads an empty snapshot. v1.0.4 (now on CPAN) fixes that and resolves
+        #~ a package's runtime DLL from its links; pin it here rather than
+        #~ trusting resolver ordering.
+        cpanm -v -n Alien::Xrepo
         #~ ExtUtils::Install marks every installed file 0444, and on Windows that
         #~ flag survives xmake's template copy, so xrepo's `xmake create` dies
         #~ with "cannot open file ... Permission denied" while rewriting the
         #~ copied xmake.lua. perl/lib stays read-only; instead mirror the built-in
         #~ templates into the user's writable xmake global dir, which xmake
-        #~ resolves ahead of its own (read-only) copies. Alien::Xrepo on `dev`
+        #~ resolves ahead of its own (read-only) copies. Alien::Xrepo v1.0.4
         #~ does this itself; the mirror here also covers builds that call xmake
         #~ without it.
         if [ "$RUNNER_OS" = Windows ]; then
