@@ -396,42 +396,49 @@ jobs:
         if [ "$RUNNER_ARCH" = "ARM64" ]; then
           echo '::warning::Windows/ARM from-source build is unsupported (links not found + xmake self-spawn); 480s cap, failures non-blocking'
           log="arm-build-$$.log"
-          #~ Do NOT background the build and kill it from a watchdog: MSYS kill
-          #~ signals the step's own process group, so the job dies with 143
-          #~ before it can report. GNU timeout runs the build in a separate
-          #~ process group, so the cap stops the build and not the step; the
-          #~ trap exits 0 as a belt-and-suspenders if anything still signals us.
+          snap="$PWD/arm-failed-logs"
+          stop="$PWD/arm-watch.stop"
+          rm -rf "$snap" "$stop"
+          mkdir -p "$snap"
+          #~ xmake wipes `installdir.failed` whenever it retries the install
+          #~ (~3.5 min apart), so a fixed cap cannot reliably catch the first
+          #~ failure's install.txt: by the time the cap fires the retry has
+          #~ already destroyed it. Snapshot every failed-install log on a short
+          #~ interval while the build runs; the retry cannot take those copies
+          #~ back.
+          snapshot () {
+            src="$(cygpath -u "${XGL:-$LOCALAPPDATA/.xmake}" 2>/dev/null)"
+            if [ -n "$src" ] && [ -d "$src" ]; then
+              find "$src" -path '*installdir.failed*' -name 'install.txt' -type f \
+                -exec cp -f --parents {} "$snap" \; 2>/dev/null || true
+            fi
+          }
           dump_arm () {
             echo "===== arm build log (tail of $log) ====="
             tail -n 200 "$log" 2>/dev/null || true
-            #~ xmake drops the per-package build log beside the failed install dir
-            #~ ("... installdir.failed/logs/install.txt"). Surface it here
-            #~ instead of only on the ephemeral runner. First use the path
-            #~ xmake printed (cygpath turns C:\... into an MSYS path), then
-            #~ sweep the cache as a fallback.
-            echo "===== xmake failed-install logs ====="
-            grep -oE 'C:\\[^ ]*install\.txt' "$log" 2>/dev/null | sort -u | while read -r w; do
-              p="$(cygpath -u "$w" 2>/dev/null)"
-              if [ -f "$p" ]; then
-                echo "----- $p -----"
-                tail -n 400 "$p" || true
-              else
-                echo "----- $w (not on disk) -----"
+            #~ Prefer the snapshots: xmake removes the live log when it retries.
+            for d in "$snap" "$(cygpath -u "${XGL:-$LOCALAPPDATA/.xmake}" 2>/dev/null)"; do
+              if [ -n "$d" ] && [ -d "$d" ]; then
+                echo "===== xmake failed-install logs under $d ====="
+                find "$d" -path '*installdir.failed*' -name 'install.txt' -type f 2>/dev/null | while read -r f; do
+                  echo "----- $f -----"
+                  tail -n 400 "$f" || true
+                done
               fi
             done
-            pkgcache="$(cygpath -u "${XGL:-$LOCALAPPDATA/.xmake}" 2>/dev/null)"
-            if [ -n "$pkgcache" ] && [ -d "$pkgcache" ]; then
-              find "$pkgcache" -path '*installdir.failed*' -name 'install.txt' -type f 2>/dev/null | while read -r f; do
-                echo "----- $f -----"
-                tail -n 400 "$f" || true
-              done
-            else
-              echo "no xmake global dir at ${pkgcache:-?}"
-            fi
             echo "===== end ARM diagnostics ====="
           }
+          #~ Do NOT background the build and kill it from a watchdog: MSYS kill
+          #~ signals the step's own process group, so the job dies with 143
+          #~ before it can report. GNU timeout runs the build in a separate
+          #~ process group, so the cap stops the build and not the step. The
+          #~ snapshot watcher stops via a sentinel, never a signal.
           trap 'dump_arm; exit 0' TERM INT
+          ( while [ ! -e "$stop" ]; do snapshot; sleep 3; done ) &
+          watcher=$!
           /usr/bin/timeout --signal=TERM --kill-after=15 480 cpanm -v . > "$log" 2>&1 || true
+          : > "$stop"
+          wait "$watcher" 2>/dev/null || true
           dump_arm
           exit 0
         fi
