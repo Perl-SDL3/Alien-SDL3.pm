@@ -5,6 +5,17 @@ All notable changes to Alien::SDL3 will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- On Windows, a Strawberry Perl host (gcc, no `cl` on PATH) could not install anything: xmake's `windows` platform never offers a gcc toolchain, so `perl Build` aborted with `toolchain not found!` and the prebuilt SDL3 DLLs were never fetched. The recipe now pins the xmake toolchain to the compiler Perl was built with, so the prebuilt DLL flavour, the import library used by the package self-test, and the library FFI opens all agree.
+- `t/affix.t` died on an undefined value when the primary package was missing but others resolved: `package_info()` with no argument returns the primary package only, so its one-element list was always truthy. It now collects each named package and drops the undefs.
+
+### Changed
+
+- `t/00_compile.t` and `t/01_delegation.t` now fail when a snapshot exists but one of the SDL3 packages does not resolve, instead of silently passing; a genuinely cold checkout (no snapshot) still skips. Both also surface whatever the build recorded for a failed package.
+
 ## [v3.4.18] - 2026-10-07
 
 ### Changed

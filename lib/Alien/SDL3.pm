@@ -15,6 +15,11 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
     # libsdl3_ttf and libsdl3_mixer); registering it here means the runtime description also
     # carries everything the engine needs to reproduce the build.
     method recipe {
+
+        # install_opts() is only the runtime's dynamic-resolution ambient; the build engine reads the
+        # recipe's `defaults`. Folding install_opts() in here is what actually hands -a (and the Windows
+        # toolchain below) to `perl Build`, keeping the built profile and dynamic resolution in step.
+        my %defaults = ( system => 1, $self->install_opts );
         return {
             name     => 'Alien-SDL3',
             packages => [
@@ -31,7 +36,7 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
             # copy (eg Ubuntu's 3.4.2 or vcpkg's 3.4.16) is skipped rather than mixed with the 3.4.18
             # headers the extension libraries build against, and on Windows the extension recipes re-check
             # that same verdict so the family never splits across sources.
-            defaults    => { system => 1 },
+            defaults    => \%defaults,
             local_repos => ['recipes']
         };
     }
@@ -42,12 +47,27 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
     # itself xmake picks the ARM64 host arch, and x64 perl.exe cannot load an arm64 DLL.
     # Setting -a here keeps target arch, the prebuilt DLL flavour, and the Perl in step.
     # Returns () when archname is unrecognised, so xmake keeps its usual host default.
+    #
+    # Windows also needs its toolchain pinned. xmake's `windows` platform lists
+    # msvc/clang/... in set_toolchains() but never gcc, so on a Strawberry Perl host --
+    # gcc, nothing named `cl` on PATH -- xmake aborts the throwaway project with
+    # "toolchain not found!" before a single package is even fetched (CPAN smoker
+    # reports on MSWin32-x64-multi-thread). Pinning the toolchain to the compiler Perl
+    # itself was built with keeps the prebuilt DLL flavour, the import library on_test
+    # links against, and the library FFI dlopens all in agreement. An MSVC-built Perl
+    # (cc=cl) is left untouched: the platform default already finds msvc.
     method install_opts {
+        my %opts;
         my $arch = $Config::Config{archname} // '';
-        return ( arch => 'arm64' )  if $arch =~ /(?:^|-)(?:arm64|aarch64)(?:-|$)/i;
-        return ( arch => 'x86_64' ) if $arch =~ /\bx86_64\b|\bamd64\b|(?:^|-)x64(?:-|$)/i;
-        return ( arch => 'x86' )    if $arch =~ /\bi[3-6]86\b|(?:^|-)x86(?:-|$)/i;
-        return ();
+        if    ( $arch =~ /(?:^|-)(?:arm64|aarch64)(?:-|$)/i )        { $opts{arch} = 'arm64' }
+        elsif ( $arch =~ /\bx86_64\b|\bamd64\b|(?:^|-)x64(?:-|$)/i ) { $opts{arch} = 'x86_64' }
+        elsif ( $arch =~ /\bi[3-6]86\b|(?:^|-)x86(?:-|$)/i )         { $opts{arch} = 'x86' }
+        if    ( $^O eq 'MSWin32' ) {
+            my $cc       = $Config::Config{cc} // '';
+            my $gcc_like = ( $Config::Config{gccversion} // '' ) || $cc =~ /\b(?:gcc|clang|g\+\+)\b/i;
+            $opts{toolchain} = 'gcc' if $gcc_like;
+        }
+        return %opts;
     }
 };
 #

@@ -9,7 +9,7 @@ my $sdl3 = Alien::SDL3->new;
 # a source checkout with no generated ConfigData (e.g. running `prove t/` cold).
 SKIP: {
     my $info = $sdl3->package_info;
-    skip 'ConfigData exists (built); delegation already resolves' => 12 if $info;
+    skip 'ConfigData exists (built); delegation already resolves' => 12 if $info || $sdl3->has_snapshot;
     for my $pkg ( $sdl3->package_names ) {
         is $sdl3->libpath($pkg),      undef, "$pkg libpath is undef before install";
         is $sdl3->version($pkg),      undef, "$pkg version is undef before install";
@@ -20,10 +20,12 @@ SKIP: {
     is [ $sdl3->bin_dir ], [], 'bin_dir is empty before install';
 }
 
-# Resolved state (post-build or already-installed) validates the real paths.
+# Resolved state (post-build or already-installed) validates the real paths. Only a
+# genuinely cold checkout (no snapshot at all) may skip: once a snapshot has been
+# written, every package must resolve, so a missing one fails here instead of skipping.
 SKIP: {
     my $info = $sdl3->package_info;
-    skip 'packages not installed; run `perl Build` first' => 19 unless $info;
+    skip 'packages not installed; run `perl Build` first' => 19 if !$info && !$sdl3->has_snapshot;
     for my $pkg ( $sdl3->package_names ) {
         my $alt = $sdl3->alt($pkg);
         ok $alt->libpath, "$pkg alt libpath resolved";
