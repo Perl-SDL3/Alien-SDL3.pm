@@ -130,7 +130,17 @@ package("libsdl3")
     -- in to sit unused (a source-built freetype/cmake is also the slow, flaky part of
     -- the Windows/ARM leg, see issue #3).
     if not is_plat("windows") then
-        add_deps("cmake", "egl-headers", "opengl-headers")
+        add_deps("egl-headers", "opengl-headers")
+    end
+
+    -- ... and not on the BSDs: xmake-repo's cmake only knows how to find a system
+    -- cmake on linux/macosx/mingw, so there it downloads and unpacks a release of its
+    -- own -- which the BSD CI images cannot do (that tarball did not download, and the
+    -- fallback wants an unzip they lack). They install cmake and ninja from ports, and
+    -- xmake's cmake tool runs whatever cmake is on PATH, so only ask for this dep
+    -- where xmake-repo can actually deliver it.
+    if not is_plat("windows", "bsd") then
+        add_deps("cmake")
     end
 
     if is_plat("linux", "bsd", "cross") then
