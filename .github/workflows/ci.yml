@@ -110,7 +110,7 @@ jobs:
         cpanm -v --with-recommends .
       matrix: >
         [
-          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"/usr/sbin/pkg_add perl curl gmake git"}
+          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; /usr/sbin/pkg_add -U git-base"}
         ]
 
   dragonflybsd:
