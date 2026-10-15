@@ -10,7 +10,12 @@ SKIP: {
         Affix->import(qw[:all]);
         #
         my $alien = Alien::SDL3->new;
-        my @infos = $alien->package_info;
+
+        # package_info() with no argument returns the *primary* package's info (a single
+        # object or undef), so assigning it to a list yields a one-element list that is
+        # truthy even when it holds undef -- the guard below then passes and line 18 dies
+        # on an undefined value. Collect each named package instead and drop the undefs.
+        my @infos = grep {defined} map { $alien->package_info($_) } $alien->package_names;
         skip_all 'Run `perl Build` first so ConfigData knows where the libraries live' unless @infos;
 
         # xrepo drops each package into its own bin directory, but the companion DLLs import

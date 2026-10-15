@@ -22,6 +22,9 @@ cover_db/
 
 /_build_params
 
+# xmake writes a per-project cache here when the engine runs it from the dist root
+/.xmake/
+
 MYMETA.*
 
 /Alien-SDL3-*
