@@ -56,6 +56,21 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
     # itself was built with keeps the prebuilt DLL flavour, the import library on_test
     # links against, and the library FFI dlopens all in agreement. An MSVC-built Perl
     # (cc=cl) is left untouched: the platform default already finds msvc.
+    #
+    # The platform itself needs pinning too, for the same reason the arch does: -p is
+    # what the recipes branch on, and without it xmake invents one from the shell.
+    # A package's target plat is `config.get("plat") or os.subhost()`
+    # (core/package/package.lua targetplat()), so a bare `xmake require` inherits
+    # "msys" when the caller runs under an MSYS shell -- git-bash, which is how the
+    # Windows CI legs drive the build and what Strawberry users routinely use. msys is
+    # a windows platform (platforms/msys/xmake.lua: set_os("windows")), but it is not
+    # the *name* "windows", so every is_plat("windows") in the recipes reads false:
+    # the family skips the official prebuilt archives, pulls egl/opengl headers, cmake
+    # and freetype in, and compiles SDL3 from source -- slow, dependent on the runner
+    # image, and on some images it dies outright with
+    # `package(libsdl3): links not found!`. Pinning windows keeps the target plat on
+    # the platform the Alien is actually installing for; the toolchain pin above is
+    # what makes that combination work with a gcc-built Perl.
     method install_opts {
         my %opts;
         my $arch = $Config::Config{archname} // '';
@@ -66,6 +81,7 @@ class Alien::SDL3 v3.4.18 : isa(Alien::Xrepo::Runtime) {
             my $cc       = $Config::Config{cc} // '';
             my $gcc_like = ( $Config::Config{gccversion} // '' ) || $cc =~ /\b(?:gcc|clang|g\+\+)\b/i;
             $opts{toolchain} = 'gcc' if $gcc_like;
+            $opts{plat}      = 'windows';
         }
         return %opts;
     }
