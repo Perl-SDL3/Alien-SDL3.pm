@@ -86,6 +86,9 @@ jobs:
     with:
       os_version: '10.1'
       task: |
+        #~ pkgsrc installs into /usr/pkg, which is not on the SSH session's
+        #~ PATH here, so put it in front before anything looks for perl.
+        export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
         perl -V
         #~ Bootstrap cpanm via a file download, never `curl | perl`: some remote
         #~ sh's run under pipefail, and curl's EPIPE (23) after a clean pipe
@@ -112,7 +115,7 @@ jobs:
         cpanm -v --with-recommends .
       matrix: >
         [
-          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; /usr/sbin/pkg_add -U git-base cmake ninja-build unzip pkgconf"}
+          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; echo BEFORE_PATH=$PATH; ls -l /usr/pkg/bin/perl /usr/bin/perl || true; /usr/sbin/pkg_add -U perl git-base cmake ninja-build unzip pkgconf; ls -l /usr/pkg/bin/perl || true"}
         ]
 
   dragonflybsd:
