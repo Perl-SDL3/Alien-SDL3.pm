@@ -86,8 +86,10 @@ jobs:
     with:
       os_version: '10.1'
       task: |
-        #~ pkgsrc installs into /usr/pkg, which is not on the SSH session's
-        #~ PATH here, so put it in front before anything looks for perl.
+        #~ Perl comes from pkgsrc, not from the base system, so put /usr/pkg/bin
+        #~ in front before anything looks for perl. The image's login PATH
+        #~ already carries that directory; this only makes the dependency
+        #~ explicit for anything that re-execs a bare `perl`.
         export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
         perl -V
         #~ Bootstrap cpanm via a file download, never `curl | perl`: some remote
@@ -113,9 +115,17 @@ jobs:
         #~ before the mirror catches up. Drop on every leg once it ships.
         cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
         cpanm -v --with-recommends .
+      #~ gmake is what actually unblocks this leg: Alien::Xmake refuses to build
+      #~ Xmake from its source bundle on a BSD unless gmake is on PATH (BSD make
+      #~ generates makefiles Xmake cannot use, and the builder checks for it), so
+      #~ without it `cpanm Alien::Xmake` dies with "We could not find the
+      #~ necessary tools (make, compiler)" even though cc and make are present.
+      #~ perl is not in the base system image at all, hence the pkgsrc install.
+      #~ The branch is spelled 10.0, but the mirror redirects that to the live
+      #~ rolling 10.0_2026Q3 All/ set (the quarterly snapshots go away).
       matrix: >
         [
-          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; echo BEFORE_PATH=$PATH; ls -l /usr/pkg/bin/perl /usr/bin/perl || true; /usr/sbin/pkg_add -U perl git-base cmake ninja-build unzip pkgconf; ls -l /usr/pkg/bin/perl || true"}
+          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; /usr/sbin/pkg_add -U perl gmake git-base cmake ninja-build unzip pkgconf"}
         ]
 
   dragonflybsd:
@@ -149,9 +159,16 @@ jobs:
         #~ before the mirror catches up. Drop on every leg once it ships.
         cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
         cpanm -v --with-recommends .
+      #~ The X11 development libraries are the difference between a green leg
+      #~ and one that bootstraps the whole X11 stack from source: xrepo has no
+      #~ system lookup for libxcb and friends on the BSDs, and building libxcb
+      #~ from source pulls in a from-source python (xcbgen). That python build
+      #~ fails on DragonFly, which is where this leg stopped. Best-effort: the
+      #~ names are dports', and a leg that is missing one still has to be able to
+      #~ report its real failure rather than a broken prepare.
       matrix: >
         [
-          {"platform_name":"dragonflybsd","os":"dragonflybsd","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","prepare":"pkg update && pkg upgrade -y && pkg install -y perl5 gcc curl gmake libunistring git cmake ninja unzip pkgconf"}
+          {"platform_name":"dragonflybsd","os":"dragonflybsd","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","prepare":"pkg update && pkg upgrade -y && pkg install -y perl5 gcc curl gmake libunistring git cmake ninja unzip pkgconf && (pkg install -y libX11 libxcb libXext libXfixes libXcursor libXrandr libXi libXrender libXScrnSaver libxkbcommon wayland xorgproto || echo 'note: some X11 development packages are unavailable in dports')"}
         ]
 
   solaris:
@@ -185,9 +202,17 @@ jobs:
         #~ before the mirror catches up. Drop on every leg once it ships.
         cpanm -v -n -f https://github.com/sanko/Alien-Xrepo.git@dev
         cpanm -v --with-recommends .
+      #~ The recipe no longer asks xrepo for cmake on Solaris (it has neither
+      #~ cmake nor ninja for solaris/i386), so the build needs the image's own
+      #~ cmake: IPS ships it as developer/build/cmake, which is what makes the
+      #~ from-source libsdl3 configure step work. Required, not best-effort --
+      #~ without it the SDL3 install fails on the first cmake call anyway, and
+      #~ failing here says why in one line. ninja is installed only so the
+      #~ optional generator policy has something to find; the recipe does not
+      #~ turn it on for this platform.
       matrix: >
         [
-          {"platform_name":"solaris","os":"solaris","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","prepare":"pkg install -v --accept perl-538 gcc developer/build/make bash git"}
+          {"platform_name":"solaris","os":"solaris","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","prepare":"pkg install -v --accept perl-538 gcc developer/build/make developer/build/cmake bash git && (pkg install -v --accept developer/build/ninja || echo 'note: no ninja package on this Solaris release')"}
         ]
 
   linux:
