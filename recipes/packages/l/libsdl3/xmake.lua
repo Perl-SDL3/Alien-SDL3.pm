@@ -145,6 +145,11 @@ package("libsdl3")
     if not is_plat("windows", "bsd", "solaris") then
         add_deps("cmake")
     end
+    if is_plat("solaris") then
+        add_cxxflags("-m64")
+        add_cflags("-m64")
+        add_ldflags("-m64")
+    end
 
     if is_plat("linux", "bsd", "cross") then
         add_configs("x11", {description = "Enables X11 support", default = true, type = "boolean"})
