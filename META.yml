@@ -38,7 +38,7 @@ no_index:
 provides:
   Alien::SDL3:
     file: lib/Alien/SDL3.pm
-    version: v3.4.19
+    version: v3.4.20
 recommends:
   Affix: '0'
 requires:
@@ -52,7 +52,7 @@ resources:
   homepage: https://github.com/Perl-SDL3/Alien-SDL3.pm
   license: http://www.perlfoundation.org/artistic_license_2_0
   repository: https://github.com/Perl-SDL3/Alien-SDL3.pm.git
-version: v3.4.19
+version: v3.4.20
 x_authority: cpan:SANKO
 x_ignore:
   - .tidyallrc

@@ -5,6 +5,10 @@ All notable changes to Alien::SDL3 will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+ - Fix `t/02_affix.t` on systems using pre-installed libs from (vcpkg, apt, brew, etc.) which all report lowercase link names (sdl3, sdl3_image, ...), while building from source creates what I'd call 'normal' names (SDL3, SDL3_image, ...).
+
 ## [v3.4.19] - 2026-10-15
 
 Well, I guess I'm going to have to tinker with versioning soon...
