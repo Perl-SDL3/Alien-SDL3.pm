@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
  - Fix `t/02_affix.t` on systems using pre-installed libs from (vcpkg, apt, brew, etc.) which all report lowercase link names (sdl3, sdl3_image, ...), while building from source creates what I'd call 'normal' names (SDL3, SDL3_image, ...).
+ - The bundled xmake recipes now build with `-m64` on 64-bit Solaris.
 
 ## [v3.4.19] - 2026-10-15
 
