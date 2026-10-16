@@ -83,6 +83,14 @@ jobs:
         #~ already carries that directory; this only makes the dependency
         #~ explicit for anything that re-execs a bare `perl`.
         export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
+        #~ The VM image is installed without X11, so the prepare unpacks the
+        #~ release's xbase/xcomp sets into /usr/X11R7. That prefix is in neither
+        #~ pkgconf's nor cmake's default search path, so point both at it (the
+        #~ .pc files carry the -I/-L for the compiler); without this the
+        #~ from-source libsdl3 build cannot see the system X11 and bootstraps
+        #~ the whole stack instead.
+        export PKG_CONFIG_PATH="/usr/X11R7/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+        export CMAKE_PREFIX_PATH="/usr/X11R7${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
         perl -V
         #~ Bootstrap cpanm via a file download, never `curl | perl`: some remote
         #~ sh's run under pipefail, and curl's EPIPE (23) after a clean pipe
@@ -111,19 +119,29 @@ jobs:
       #~ perl is not in the base system image at all, hence the pkgsrc install.
       #~ The branch is spelled 10.0, but the mirror redirects that to the live
       #~ rolling 10.0_2026Q3 All/ set (the quarterly snapshots go away).
-      #~ X11 is in the NetBSD base system, and xrepo has no system lookup for the
-      #~ libx11/libxcb family on the BSDs, so the from-source libsdl3 build
-      #~ bootstraps the whole X11 stack from source. That bootstrap needs m4 (for
-      #~ autoconf, which xorgproto builds with) and a python3 carrying pip,
-      #~ setuptools and wheel (libxcb's xcbgen), neither of which the base image
-      #~ has: without m4 it stops at "configure: error: no acceptable m4 could be
-      #~ found in $PATH". python313's installer also links /usr/pkg/bin/python3,
-      #~ which is the name xmake's fetch hook probes for. Best-effort on the X11
-      #~ group: a leg missing one of these still has to be able to report its real
-      #~ failure rather than a broken prepare.
+      #~ This image is installed without X11 (that is the sysinst profile the
+      #~ prebuilt VM carries), so /usr/X11R7 is absent and pkgsrc's X11 packages
+      #~ are built against the base X11 that is missing -- installing them only
+      #~ leaves dangling .pc symlinks, and the one that carries them (x11-links)
+      #~ refuses to install at all because its osabi-NetBSD-10.0 dependency sees
+      #~ the image report 10.1. xrepo has no system lookup for the libx11/libxcb
+      #~ family on the BSDs, so without base X11 the from-source libsdl3 build
+      #~ bootstraps the whole X11 stack from source and dies at libx11, whose
+      #~ recipe links -ldl and NetBSD has no libdl (dlopen lives in libc).
+      #~ Instead of stubbing that out, unpack the release's own X11 sets: xbase
+      #~ carries the shared libraries and their .so dev symlinks, xcomp the
+      #~ headers and pkg-config files. They come from archive.netbsd.org's
+      #~ NetBSD-archive tree, the permanently archived release (ftp.netbsd.org
+      #~ already 404s the 10.1 sets), and the task points pkg-config and cmake at
+      #~ /usr/X11R7 so the whole libx11 family resolves from the system, exactly
+      #~ as on FreeBSD. Only libxss and xorgproto still build from source (their
+      #~ recipes look for xss.pc / xorgproto.pc, which X11R7 does not ship); that
+      #~ path needs m4 for autoconf, which this base image also lacks. curl is
+      #~ named explicitly because the base image has none (only ftp) and both the
+      #~ set download and the task use it.
       matrix: >
         [
-          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; /usr/sbin/pkg_add -U perl gmake git-base cmake ninja-build unzip pkgconf m4 && (/usr/sbin/pkg_add -U libX11 xorgproto libXcursor libXrender libXScrnSaver libxkbcommon x11-links x11/libX11 x11/libxcb x11/xcb-proto python313 py313-pip py313-setuptools py313-wheel || echo 'note: some X11/python development packages are unavailable in pkgsrc')"}
+          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PATH=/usr/pkg/bin:/usr/pkg/sbin:$PATH; set -e; export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; /usr/sbin/pkg_add -U perl gmake git-base cmake ninja-build unzip pkgconf m4 curl; for s in xbase xcomp; do curl -fsSL https://archive.netbsd.org/pub/NetBSD-archive/NetBSD-10.1/amd64/binary/sets/$s.tar.xz -o /tmp/$s.tar.xz; xz -dc /tmp/$s.tar.xz | tar -xpf - -C /; rm -f /tmp/$s.tar.xz; done"}
         ]
 
   dragonflybsd:
