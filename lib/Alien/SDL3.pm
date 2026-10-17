@@ -76,6 +76,20 @@ class Alien::SDL3 v3.4.20 : isa(Alien::Xrepo::Runtime) {
         my $arch = $Config::Config{archname} // '';
         if    ( $arch =~ /(?:^|-)(?:arm64|aarch64)(?:-|$)/i )        { $opts{arch} = 'arm64' }
         elsif ( $arch =~ /\bx86_64\b|\bamd64\b|(?:^|-)x64(?:-|$)/i ) { $opts{arch} = 'x86_64' }
+        elsif ( $arch =~ /\bi86pc\b/i ) {
+            # Solaris calls the machine "i86pc" for both word sizes, so a 64-bit
+            # Perl's archname ("i86pc-solaris-64") matches neither branch above
+            # nor the i[3-6]86 one below. Left unrecognised, xmake keeps its host
+            # default -- which it also reads as "i386" -- and its gcc toolchain
+            # then appends -m32 to everything it compiles: the wrong word size
+            # for the -m64 Perl that has to dlopen the result. It first bites
+            # while libsdl3_ttf builds its freetype dependency, whose cmake build
+            # still comes out 64-bit while its on_test link check is -m32:
+            #   ld: ... libfreetype.a(ftinit.c.o): wrong ELF class: ELFCLASS64
+            # Trust the Perl this Alien feeds over the machine string.
+            my $is64 = ( $Config::Config{ptrsize} // 0 ) == 8 || $arch =~ /-64(?:-|$)/;
+            $opts{arch} = $is64 ? 'x86_64' : 'x86';
+        }
         elsif ( $arch =~ /\bi[3-6]86\b|(?:^|-)x86(?:-|$)/i )         { $opts{arch} = 'x86' }
         if    ( $^O eq 'MSWin32' ) {
             my $cc       = $Config::Config{cc} // '';
