@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The minimum required `Alien::Xrepo` is now v1.0.9. Setting `ALIEN_SDL3_XMAKE_DEBUG=1` forwards xmake's `-v`/`-D` to `xrepo install`, so a package that fails to build prints its whole `install.txt` instead of only the tail; the Solaris CI leg sets it.
+
 ### Fixed
 
  - Fix `t/02_affix.t` on systems using pre-installed libs from (vcpkg, apt, brew, etc.) which all report lowercase link names (sdl3, sdl3_image, ...), while building from source creates what I'd call 'normal' names (SDL3, SDL3_image, ...).
- - The bundled xmake recipes now build with `-m64` on 64-bit Solaris.
+ - 64-bit x86 Solaris no longer builds 32-bit libraries. `$Config{archname}` there is `i86pc-solaris-64`, which `install_opts` did not recognise, so xmake never received `-a x86_64`: it fell back to a host arch it also reports as `i386`, and its gcc toolchain appended `-m32` to everything it compiled. That is the wrong word size for the `-m64` Perl this Alien feeds, and it first surfaced as `ld: ... libfreetype.a(ftinit.c.o): wrong ELF class: ELFCLASS64` while building SDL3_ttf's freetype dependency. The bundled xmake recipes also build with `-m64` on 64-bit Solaris.
+ - The bundled `libsdl3` recipe now survives the falsely detected cross-compile that `-a x86_64` triggers on Solaris, where xmake misreads the host arch as i386. xmake's cmake tool took its cross-compilation branch and set `CMAKE_SYSTEM_NAME` to the raw xmake OS name `solaris`, which cmake does not know (`System is unknown to cmake, create: Platform/solaris`). The recipe pins `CMAKE_SYSTEM_NAME=SunOS` and restores the system/prefix searches that branch suppresses.
 
 ## [v3.4.19] - 2026-10-15
 

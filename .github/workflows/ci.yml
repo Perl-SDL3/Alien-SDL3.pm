@@ -65,11 +65,15 @@ jobs:
         export XMAKE_ROOT=y
         cpanm --notest IO::Socket::SSL
         cpanm -v --with-recommends .
-      #~ OpenBSD is disabled for now: its in-VM builds are so slow they were
-      #~ blocking the whole dev loop. Re-enable once the fast platforms are
-      #~ fully green (prep: pkg_add gcc-11.2.0p19 g++-11.2.0p19 curl gmake git).
+      #~ The OpenBSD image ships clang, perl 5.40.1 and Xenocara X11, but the
+      #~ build still needs packages installed: git (the SDL recipes resolve the
+      #~ `github` alias, which is a git url, so xmake refuses to fetch without
+      #~ it), cmake (the recipe deliberately drops the xmake-repo cmake dep on
+      #~ the BSDs and uses whatever is on PATH instead), plus ninja and unzip.
       matrix: >
-        []
+        [
+          {"platform_name":"openbsd","os":"openbsd","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.2","prepare":"pkg_add git cmake ninja gmake curl unzip"}
+        ]
 
   netbsd:
     name: NetBSD
@@ -83,6 +87,27 @@ jobs:
         #~ already carries that directory; this only makes the dependency
         #~ explicit for anything that re-execs a bare `perl`.
         export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
+        #~ The VM image is installed without X11, so the prepare unpacks the
+        #~ release's xbase/xcomp sets into /usr/X11R7. That prefix is in neither
+        #~ pkgconf's nor cmake's default search path, so point both at it (the
+        #~ .pc files carry the -I/-L for the compiler); without this the
+        #~ from-source libsdl3 build cannot see the system X11 and bootstraps
+        #~ the whole stack instead.
+        export PKG_CONFIG_PATH="/usr/X11R7/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+        export CMAKE_PREFIX_PATH="/usr/X11R7${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+        #~ xmake matches a dependency to a pkg-config file named after the
+        #~ package with any leading "lib" stripped, so libx11 matches x11.pc and
+        #~ libxss matches xss.pc. X11R7 carries the XScrnSaver library but names
+        #~ its file xscrnsaver.pc, so libxss would not match and xmake would
+        #~ rebuild it from source, pulling in its own autoconf/automake/libtool
+        #~ (which cannot find pkgsrc's pkg.m4 and dies with "PKG_PROG_PKG_CONFIG:
+        #~ not found"). The prepare aliases xss.pc to xscrnsaver.pc so libXss
+        #~ resolves from the system like the rest of the family. ACLOCAL_PATH is
+        #~ kept as a fallback for a from-source autotools package: pkgsrc keeps
+        #~ pkg.m4 in /usr/pkg/share/aclocal, which aclocal does not search by
+        #~ default (FreeBSD's sits in /usr/local/share/aclocal, which it does),
+        #~ and the prepare mirrors it into /usr/local as well.
+        export ACLOCAL_PATH="/usr/pkg/share/aclocal${ACLOCAL_PATH:+:$ACLOCAL_PATH}"
         perl -V
         #~ Bootstrap cpanm via a file download, never `curl | perl`: some remote
         #~ sh's run under pipefail, and curl's EPIPE (23) after a clean pipe
@@ -111,19 +136,37 @@ jobs:
       #~ perl is not in the base system image at all, hence the pkgsrc install.
       #~ The branch is spelled 10.0, but the mirror redirects that to the live
       #~ rolling 10.0_2026Q3 All/ set (the quarterly snapshots go away).
-      #~ X11 is in the NetBSD base system, and xrepo has no system lookup for the
-      #~ libx11/libxcb family on the BSDs, so the from-source libsdl3 build
-      #~ bootstraps the whole X11 stack from source. That bootstrap needs m4 (for
-      #~ autoconf, which xorgproto builds with) and a python3 carrying pip,
-      #~ setuptools and wheel (libxcb's xcbgen), neither of which the base image
-      #~ has: without m4 it stops at "configure: error: no acceptable m4 could be
-      #~ found in $PATH". python313's installer also links /usr/pkg/bin/python3,
-      #~ which is the name xmake's fetch hook probes for. Best-effort on the X11
-      #~ group: a leg missing one of these still has to be able to report its real
-      #~ failure rather than a broken prepare.
+      #~ This image is installed without X11 (that is the sysinst profile the
+      #~ prebuilt VM carries), so /usr/X11R7 is absent and pkgsrc's X11 packages
+      #~ are built against the base X11 that is missing -- installing them only
+      #~ leaves dangling .pc symlinks, and the one that carries them (x11-links)
+      #~ refuses to install at all because its osabi-NetBSD-10.0 dependency sees
+      #~ the image report 10.1. xrepo has no system lookup for the libx11/libxcb
+      #~ family on the BSDs, so without base X11 the from-source libsdl3 build
+      #~ bootstraps the whole X11 stack from source and dies at libx11, whose
+      #~ recipe links -ldl and NetBSD has no libdl (dlopen lives in libc).
+      #~ Instead of stubbing that out, unpack the release's own X11 sets: xbase
+      #~ carries the shared libraries and their .so dev symlinks, xcomp the
+      #~ headers and pkg-config files. They come from archive.netbsd.org's
+      #~ NetBSD-archive tree, the permanently archived release (ftp.netbsd.org
+      #~ already 404s the 10.1 sets), and the task points pkg-config and cmake at
+      #~ /usr/X11R7 so the whole libx11 family resolves from the system, exactly
+      #~ as on FreeBSD. Only libxss and xorgproto still build from source: xmake
+      #~ matches a dependency to xss.pc / xorgproto.pc, and X11R7 ships the same
+      #~ libraries under the names xscrnsaver.pc and xproto.pc, so those two
+      #~ lookups miss. xorgproto's tarball carries a pregenerated configure, but
+      #~ libxss's does not, so xmake regenerates it with its own autoconf/
+      #~ automake/libtool and the generated configure needs the PKG_PROG_PKG_CONFIG
+      #~ macro from pkg.m4 (pkgsrc keeps it in /usr/pkg/share/aclocal, which
+      #~ aclocal does not search by default, hence the ACLOCAL_PATH fallback
+      #~ above). The prepare also aliases xss.pc to xscrnsaver.pc, which makes
+      #~ libXss resolve from the system and skips that source build entirely. m4
+      #~ is installed from pkgsrc because the base image has none and xmake's
+      #~ autoconf needs it. curl is named explicitly because the base image has
+      #~ none (only ftp) and both the set download and the task use it.
       matrix: >
         [
-          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; /usr/sbin/pkg_add -U perl gmake git-base cmake ninja-build unzip pkgconf m4 && (/usr/sbin/pkg_add -U xorgproto libXcursor libXrender libXScrnSaver libxkbcommon x11-links python313 py313-pip py313-setuptools py313-wheel || echo 'note: some X11/python development packages are unavailable in pkgsrc')"}
+          {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"export PATH=/usr/pkg/bin:/usr/pkg/sbin:$PATH; set -e; export PKG_PATH=https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/10.0/All; /usr/sbin/pkg_add -U perl gmake git-base cmake ninja-build unzip pkgconf m4 curl; mkdir -p /usr/local/share/aclocal /usr/share/aclocal; ln -sf /usr/pkg/share/aclocal/pkg.m4 /usr/local/share/aclocal/pkg.m4; ln -sf /usr/pkg/share/aclocal/pkg.m4 /usr/share/aclocal/pkg.m4; for s in xbase xcomp; do curl -fsSL https://archive.netbsd.org/pub/NetBSD-archive/NetBSD-10.1/amd64/binary/sets/$s.tar.xz -o /tmp/$s.tar.xz; xz -dc /tmp/$s.tar.xz | tar -xpf - -C /; rm -f /tmp/$s.tar.xz; done; ln -sf xscrnsaver.pc /usr/X11R7/lib/pkgconfig/xss.pc"}
         ]
 
   dragonflybsd:
@@ -213,6 +256,12 @@ jobs:
         export PATH="/tmp/gnutar:$PATH"
         echo "gtar=$gtar tar=$(command -v tar)"
         tar --version 2>&1 | head -n 1
+        #~ Forward -v/-D to `xrepo install` (Alien::Xrepo v1.0.9+) so a package
+        #~ that fails to build prints its whole install.txt instead of only the
+        #~ tail. Without this the Solaris libsdl3 failure is a bare
+        #~ `=> install libsdl3 .. failed` with no cause; with it the real error
+        #~ (a bogus CMAKE_SYSTEM_NAME=solaris from a false cross-compile) shows.
+        export ALIEN_SDL3_XMAKE_DEBUG=1
         export XMAKE_ROOT=y
         cpanm --notest IO::Socket::SSL
         cpanm -v --with-recommends .
