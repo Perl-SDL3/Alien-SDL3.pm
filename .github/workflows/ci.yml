@@ -69,7 +69,9 @@ jobs:
       #~ blocking the whole dev loop. Re-enable once the fast platforms are
       #~ fully green (prep: pkg_add gcc-11.2.0p19 g++-11.2.0p19 curl gmake git).
       matrix: >
-        []
+        [
+          {"platform_name":"openbsd","os":"openbsd","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.2","prepare":"pkg_add gmake curl"}
+        ]
 
   netbsd:
     name: NetBSD
