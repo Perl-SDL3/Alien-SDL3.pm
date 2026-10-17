@@ -65,12 +65,14 @@ jobs:
         export XMAKE_ROOT=y
         cpanm --notest IO::Socket::SSL
         cpanm -v --with-recommends .
-      #~ OpenBSD is disabled for now: its in-VM builds are so slow they were
-      #~ blocking the whole dev loop. Re-enable once the fast platforms are
-      #~ fully green (prep: pkg_add gcc-11.2.0p19 g++-11.2.0p19 curl gmake git).
+      #~ The OpenBSD image ships clang, perl 5.40.1 and Xenocara X11, but the
+      #~ build still needs packages installed: git (the SDL recipes resolve the
+      #~ `github` alias, which is a git url, so xmake refuses to fetch without
+      #~ it), cmake (the recipe deliberately drops the xmake-repo cmake dep on
+      #~ the BSDs and uses whatever is on PATH instead), plus ninja and unzip.
       matrix: >
         [
-          {"platform_name":"openbsd","os":"openbsd","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.2","prepare":"pkg_add gmake curl"}
+          {"platform_name":"openbsd","os":"openbsd","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.2","prepare":"pkg_add git cmake ninja gmake curl unzip"}
         ]
 
   netbsd:
