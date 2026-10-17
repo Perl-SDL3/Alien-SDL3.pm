@@ -252,6 +252,12 @@ jobs:
         export PATH="/tmp/gnutar:$PATH"
         echo "gtar=$gtar tar=$(command -v tar)"
         tar --version 2>&1 | head -n 1
+        #~ Forward -v/-D to `xrepo install` (Alien::Xrepo v1.0.9+) so a package
+        #~ that fails to build prints its whole install.txt instead of only the
+        #~ tail. Without this the Solaris libsdl3 failure is a bare
+        #~ `=> install libsdl3 .. failed` with no cause; with it the real error
+        #~ (a bogus CMAKE_SYSTEM_NAME=solaris from a false cross-compile) shows.
+        export ALIEN_SDL3_XMAKE_DEBUG=1
         export XMAKE_ROOT=y
         cpanm --notest IO::Socket::SSL
         cpanm -v --with-recommends .
