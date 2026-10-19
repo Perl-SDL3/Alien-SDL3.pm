@@ -5,6 +5,10 @@ All notable changes to Alien::SDL3 will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Bump minimum required `Alien::Xrepo` to v1.0.10 and allow installation of `libsdl3_image`, `libsdl3_ttf`, and `libsdl3_mixer` to fail without failing the overall installation of `Alien::SDL3`.
+
 ## [v3.4.20] - 2026-10-17
 
 ### Changed
