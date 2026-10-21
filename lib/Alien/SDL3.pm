@@ -4,11 +4,8 @@ no warnings 'experimental::class';
 use Alien::Xrepo::Runtime;
 use Config ();
 #
-
-package Alien::SDL3;
-our $VERSION = 'v3.4.21';
-#
 class Alien::SDL3 v3.4.21 : isa(Alien::Xrepo::Runtime) {
+    our $VERSION = $VERSION;
 
     # SDL3 is bound as a family: core + the common extension libraries. Each is installed
     # separately (as a SHARED library; xrepo builds SDL3 static by default, and Affix/FFI::Platypus
