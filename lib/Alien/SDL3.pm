@@ -1,6 +1,6 @@
 use v5.40;
 #
-package Alien::SDL3 v3.4.21 {
+package Alien::SDL3 v3.4.22 {
     use feature 'class';
     no warnings 'experimental::class';
     use Alien::Xrepo::Runtime;
@@ -8,7 +8,6 @@ package Alien::SDL3 v3.4.21 {
 
     class Alien::SDL3 : isa(Alien::Xrepo::Runtime) {
 
-        #~ our $VERSION = our $VERSION;
         # SDL3 is bound as a family: core + the common extension libraries. Each is installed
         # separately (as a SHARED library; xrepo builds SDL3 static by default, and Affix/FFI::Platypus
         # need a real .dll/.so/.dylib) and exposed via the Alien::Build-style `alt()` accessor or a
